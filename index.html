@@ -8,12 +8,26 @@
   </head>
   <body>
     <header class="app-header">
-      <div>
-        <p class="eyebrow">MVP</p>
+      <div class="header-copy">
+        <p class="eyebrow">Контент-пайплайн</p>
         <h1>Доска контента</h1>
+        <p class="subtitle">
+          Собирай идеи, доводи посты до публикации и не теряй, что на какой стадии.
+        </p>
       </div>
-      <button class="primary-action" id="addPostButton" type="button">+ Идея</button>
+      <div class="header-actions">
+        <div class="storage-status" aria-label="Статус сохранения">
+          <span></span>
+          Сохраняется в браузере
+        </div>
+        <button class="primary-action" id="addPostButton" type="button">
+          <span aria-hidden="true">+</span>
+          Идея
+        </button>
+      </div>
     </header>
+
+    <section class="summary-strip" id="summaryStrip" aria-label="Сводка по доске"></section>
 
     <main class="board" id="board" aria-label="Стадии постов"></main>
 

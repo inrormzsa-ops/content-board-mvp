@@ -1,10 +1,30 @@
 const STORAGE_KEY = "content-board-mvp-posts";
 
 const stages = [
-  { id: "idea", title: "Идея" },
-  { id: "draft", title: "Черновик" },
-  { id: "scheduled", title: "Запланировано" },
-  { id: "published", title: "Опубликовано" }
+  {
+    id: "idea",
+    title: "Идея",
+    hint: "Сырые мысли и темы",
+    accent: "#eab308"
+  },
+  {
+    id: "draft",
+    title: "Черновик",
+    hint: "Пост уже пишется",
+    accent: "#3b82f6"
+  },
+  {
+    id: "scheduled",
+    title: "Запланировано",
+    hint: "Есть дата выхода",
+    accent: "#8b5cf6"
+  },
+  {
+    id: "published",
+    title: "Опубликовано",
+    hint: "Готово и вышло",
+    accent: "#10b981"
+  }
 ];
 
 const samplePosts = [
@@ -32,6 +52,7 @@ let posts = loadPosts();
 let editingPostId = null;
 
 const board = document.querySelector("#board");
+const summaryStrip = document.querySelector("#summaryStrip");
 const dialog = document.querySelector("#postDialog");
 const form = document.querySelector("#postForm");
 const addPostButton = document.querySelector("#addPostButton");
@@ -128,6 +149,7 @@ function savePosts() {
 
 function renderBoard() {
   board.innerHTML = "";
+  renderSummary();
 
   stages.forEach((stage) => {
     const stagePosts = posts
@@ -142,9 +164,13 @@ function createColumn(stage, stagePosts) {
   const column = document.createElement("section");
   column.className = "column";
   column.dataset.stage = stage.id;
+  column.style.setProperty("--stage-accent", stage.accent);
   column.innerHTML = `
     <div class="column-header">
-      <h2>${stage.title}</h2>
+      <div>
+        <h2>${stage.title}</h2>
+        <p>${stage.hint}</p>
+      </div>
       <span class="count">${stagePosts.length}</span>
     </div>
     <div class="card-list"></div>
@@ -155,7 +181,10 @@ function createColumn(stage, stagePosts) {
   if (stagePosts.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Перетащи карточку сюда";
+    empty.innerHTML = `
+      <strong>Пока пусто</strong>
+      <span>Перетащи карточку сюда или двигай стрелками</span>
+    `;
     list.append(empty);
   }
 
@@ -182,8 +211,10 @@ function createColumn(stage, stagePosts) {
 
 function createPostCard(post) {
   const currentStageIndex = stages.findIndex((stage) => stage.id === post.stage);
+  const stage = stages[currentStageIndex];
   const card = document.createElement("article");
   card.className = "post-card";
+  card.style.setProperty("--stage-accent", stage.accent);
   card.draggable = true;
   card.tabIndex = 0;
   card.innerHTML = `
@@ -197,6 +228,7 @@ function createPostCard(post) {
     </div>
     <div class="card-actions" aria-label="Перемещение по стадиям">
       <button class="move-button" type="button" data-direction="-1" aria-label="Переместить назад">←</button>
+      <span>Стадия: ${escapeHtml(stage.title)}</span>
       <button class="move-button" type="button" data-direction="1" aria-label="Переместить вперед">→</button>
     </div>
   `;
@@ -233,6 +265,32 @@ function createPostCard(post) {
   });
 
   return card;
+}
+
+function renderSummary() {
+  const total = posts.length;
+  const published = posts.filter((post) => post.stage === "published").length;
+  const scheduled = posts.filter((post) => post.stage === "scheduled").length;
+  const withDate = posts.filter((post) => Boolean(post.date)).length;
+
+  summaryStrip.innerHTML = `
+    <article>
+      <strong>${total}</strong>
+      <span>всего постов</span>
+    </article>
+    <article>
+      <strong>${scheduled}</strong>
+      <span>запланировано</span>
+    </article>
+    <article>
+      <strong>${published}</strong>
+      <span>опубликовано</span>
+    </article>
+    <article>
+      <strong>${withDate}</strong>
+      <span>с датой</span>
+    </article>
+  `;
 }
 
 function openPostDialog(post = null) {
