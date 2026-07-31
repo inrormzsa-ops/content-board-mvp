@@ -1,0 +1,16 @@
+{
+  "name": "content-board-mvp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MVP web board for managing content ideas through publishing stages.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "mvp",
+    "content-board",
+    "localstorage"
+  ],
+  "author": "",
+  "license": "MIT"
+}

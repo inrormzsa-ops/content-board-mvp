@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Content Board MVP</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">MVP</p>
+        <h1>Доска контента</h1>
+      </div>
+      <button class="primary-action" id="addPostButton" type="button">+ Идея</button>
+    </header>
+
+    <main class="board" id="board" aria-label="Стадии постов"></main>
+
+    <dialog class="post-dialog" id="postDialog">
+      <form class="post-form" id="postForm" method="dialog">
+        <div class="dialog-header">
+          <h2 id="dialogTitle">Новая идея</h2>
+          <button class="icon-button" id="closeDialogButton" type="button" aria-label="Закрыть">×</button>
+        </div>
+
+        <label>
+          Заголовок
+          <input id="postTitle" name="title" type="text" maxlength="80" required />
+        </label>
+
+        <label>
+          Текст поста
+          <textarea id="postText" name="text" rows="7" maxlength="1200" required></textarea>
+        </label>
+
+        <div class="form-grid">
+          <label>
+            Дата публикации
+            <input id="postDate" name="date" type="date" />
+          </label>
+
+          <label>
+            Соцсеть
+            <select id="postNetwork" name="network">
+              <option value="Instagram">Instagram</option>
+              <option value="Telegram">Telegram</option>
+              <option value="VK">VK</option>
+              <option value="YouTube">YouTube</option>
+              <option value="Другое">Другое</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button class="danger-action" id="deletePostButton" type="button">Удалить</button>
+          <button class="primary-action" type="submit">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
