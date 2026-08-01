@@ -117,6 +117,22 @@
           <textarea id="postText" name="text" rows="7" maxlength="1200" required></textarea>
         </label>
 
+        <div class="template-row">
+          <label>
+            Шаблон
+            <select id="postTemplate">
+              <option value="">Выбери шаблон</option>
+              <option value="lesson">Обучающий пост</option>
+              <option value="case">Кейс</option>
+              <option value="announcement">Анонс</option>
+              <option value="question">Вопрос аудитории</option>
+            </select>
+          </label>
+          <button class="secondary-action compact-action" id="applyTemplateButton" type="button">
+            Применить
+          </button>
+        </div>
+
         <div class="form-grid">
           <label>
             Дата публикации

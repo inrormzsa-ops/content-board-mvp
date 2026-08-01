@@ -53,6 +53,68 @@ const samplePosts = [
   }
 ];
 
+const postTemplates = {
+  lesson: {
+    title: "Как сделать первый шаг",
+    network: "Telegram",
+    text: [
+      "Хук: многие застревают не из-за сложности, а из-за слишком большого первого шага.",
+      "",
+      "1. Что обычно мешает начать.",
+      "2. Как упростить задачу до действия на 15 минут.",
+      "3. Как понять, что шаг сработал.",
+      "",
+      "Вывод: маленький понятный шаг лучше большого идеального плана.",
+      "",
+      "CTA: какой первый шаг ты сделаешь сегодня?"
+    ].join("\n")
+  },
+  case: {
+    title: "Кейс: как мы улучшили процесс",
+    network: "VK",
+    text: [
+      "Ситуация: был процесс, в котором идеи терялись между черновиком и публикацией.",
+      "",
+      "Что сделали:",
+      "1. Разложили работу по стадиям.",
+      "2. Добавили чеклист готовности.",
+      "3. Настроили напоминания по зависшим карточкам.",
+      "",
+      "Результат: стало видно, где именно застревает контент.",
+      "",
+      "CTA: хочешь такой разбор для своего процесса?"
+    ].join("\n")
+  },
+  announcement: {
+    title: "Анонс нового материала",
+    network: "Instagram",
+    text: [
+      "Скоро выйдет новый материал про [тема].",
+      "",
+      "В нем разберем:",
+      "- главную проблему;",
+      "- практический пример;",
+      "- что можно повторить у себя.",
+      "",
+      "Сохрани, чтобы не потерять."
+    ].join("\n")
+  },
+  question: {
+    title: "Вопрос к аудитории",
+    network: "Telegram",
+    text: [
+      "Вопрос дня: на какой стадии чаще всего застревает твой контент?",
+      "",
+      "1. Идея есть, но не пишется.",
+      "2. Черновик есть, но не доводится.",
+      "3. Дата не выбрана.",
+      "4. Опубликовано, но не разобрано дальше.",
+      "",
+      "Ответь одним номером или коротко расскажи свою ситуацию."
+    ].join("\n")
+  }
+};
+
 let posts = loadPosts();
 let editingPostId = null;
 let staleThresholdDays = loadStaleThreshold();
@@ -86,6 +148,8 @@ const archivePostButton = document.querySelector("#archivePostButton");
 const dialogTitle = document.querySelector("#dialogTitle");
 const titleInput = document.querySelector("#postTitle");
 const textInput = document.querySelector("#postText");
+const templateInput = document.querySelector("#postTemplate");
+const applyTemplateButton = document.querySelector("#applyTemplateButton");
 const dateInput = document.querySelector("#postDate");
 const networkInput = document.querySelector("#postNetwork");
 const checkTextInput = document.querySelector("#checkText");
@@ -179,6 +243,8 @@ insertAiOutputButton.addEventListener("click", () => {
   textInput.value = aiOutput.value;
   checkTextInput.checked = true;
 });
+
+applyTemplateButton.addEventListener("click", applySelectedTemplate);
 
 dialog.addEventListener("click", (event) => {
   if (event.target === dialog) {
@@ -568,6 +634,7 @@ function closePostDialog() {
   form.reset();
   writeChecklist();
   aiOutput.value = "";
+  templateInput.value = "";
   editingPostId = null;
   dialog.close();
 }
@@ -586,6 +653,25 @@ function writeChecklist(checklist = {}) {
   checkDateInput.checked = Boolean(checklist.date);
   checkReviewInput.checked = Boolean(checklist.review);
   checkPublishedInput.checked = Boolean(checklist.published);
+}
+
+function applySelectedTemplate() {
+  const template = postTemplates[templateInput.value];
+
+  if (!template) {
+    return;
+  }
+
+  const hasExistingContent = titleInput.value.trim() || textInput.value.trim();
+
+  if (hasExistingContent && !window.confirm("Заменить текущий заголовок и текст шаблоном?")) {
+    return;
+  }
+
+  titleInput.value = template.title;
+  textInput.value = template.text;
+  networkInput.value = template.network;
+  checkTextInput.checked = true;
 }
 
 function movePostByOneStage(postId, direction) {
