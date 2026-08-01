@@ -176,6 +176,70 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) minmax(160px, 220px) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 0 clamp(16px, 4vw, 44px) 18px;
+}
+
+.toolbar label {
+  min-width: 0;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.secondary-action,
+.ghost-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.secondary-action {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.secondary-action:hover {
+  border-color: rgba(15, 118, 110, 0.36);
+  background: #eefaf7;
+}
+
+.ghost-action {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ghost-action:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.file-action input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 .board {
   display: grid;
   grid-template-columns: repeat(4, minmax(240px, 1fr));
@@ -296,6 +360,15 @@ h1 {
   transform: rotate(1deg);
 }
 
+.post-card.is-overdue {
+  border-color: rgba(180, 35, 24, 0.34);
+  background: linear-gradient(180deg, #fff, #fff8f7);
+}
+
+.post-card.needs-date {
+  border-color: rgba(234, 179, 8, 0.36);
+}
+
 .post-card h3 {
   margin: 0;
   overflow-wrap: anywhere;
@@ -336,10 +409,45 @@ h1 {
   white-space: nowrap;
 }
 
+.tag-telegram {
+  background: #e8f2ff;
+  color: #175cd3;
+}
+
+.tag-instagram {
+  background: #fff1f3;
+  color: #c11574;
+}
+
+.tag-vk {
+  background: #eef4ff;
+  color: #3538cd;
+}
+
+.tag-youtube {
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.tag-другое {
+  background: #eef2f7;
+  color: #475467;
+}
+
 .date {
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
+}
+
+.is-overdue .date {
+  color: var(--danger);
+  font-weight: 900;
+}
+
+.needs-date .date {
+  color: #a15c07;
+  font-weight: 900;
 }
 
 .card-actions {
@@ -519,6 +627,14 @@ textarea {
   .board {
     grid-template-columns: repeat(4, minmax(270px, 76vw));
   }
+
+  .toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .toolbar-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 760px) {
@@ -543,6 +659,20 @@ textarea {
 
   .board {
     grid-template-columns: repeat(4, minmax(260px, 86vw));
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .secondary-action,
+  .ghost-action {
+    width: 100%;
   }
 
   .form-grid {

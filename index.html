@@ -29,6 +29,43 @@
 
     <section class="summary-strip" id="summaryStrip" aria-label="Сводка по доске"></section>
 
+    <section class="toolbar" aria-label="Поиск, фильтры и перенос данных">
+      <label class="search-field">
+        <span>Поиск</span>
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="Заголовок или текст"
+          autocomplete="off"
+        />
+      </label>
+
+      <label>
+        Соцсеть
+        <select id="networkFilter">
+          <option value="all">Все соцсети</option>
+        </select>
+      </label>
+
+      <label>
+        Даты
+        <select id="dateFilter">
+          <option value="all">Все даты</option>
+          <option value="withoutDate">Без даты</option>
+          <option value="overdue">Просроченные</option>
+        </select>
+      </label>
+
+      <div class="toolbar-actions">
+        <button class="secondary-action" id="exportButton" type="button">Экспорт</button>
+        <label class="secondary-action file-action">
+          Импорт
+          <input id="importInput" type="file" accept="application/json,.json" />
+        </label>
+        <button class="ghost-action" id="resetFiltersButton" type="button">Сбросить</button>
+      </div>
+    </section>
+
     <main class="board" id="board" aria-label="Стадии постов"></main>
 
     <dialog class="post-dialog" id="postDialog">

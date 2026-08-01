@@ -50,9 +50,20 @@ const samplePosts = [
 
 let posts = loadPosts();
 let editingPostId = null;
+let filters = {
+  search: "",
+  network: "all",
+  date: "all"
+};
 
 const board = document.querySelector("#board");
 const summaryStrip = document.querySelector("#summaryStrip");
+const searchInput = document.querySelector("#searchInput");
+const networkFilter = document.querySelector("#networkFilter");
+const dateFilter = document.querySelector("#dateFilter");
+const resetFiltersButton = document.querySelector("#resetFiltersButton");
+const exportButton = document.querySelector("#exportButton");
+const importInput = document.querySelector("#importInput");
 const dialog = document.querySelector("#postDialog");
 const form = document.querySelector("#postForm");
 const addPostButton = document.querySelector("#addPostButton");
@@ -68,6 +79,36 @@ renderBoard();
 
 addPostButton.addEventListener("click", () => openPostDialog());
 closeDialogButton.addEventListener("click", closePostDialog);
+
+searchInput.addEventListener("input", () => {
+  filters.search = searchInput.value.trim().toLowerCase();
+  renderBoard();
+});
+
+networkFilter.addEventListener("change", () => {
+  filters.network = networkFilter.value;
+  renderBoard();
+});
+
+dateFilter.addEventListener("change", () => {
+  filters.date = dateFilter.value;
+  renderBoard();
+});
+
+resetFiltersButton.addEventListener("click", () => {
+  filters = {
+    search: "",
+    network: "all",
+    date: "all"
+  };
+  searchInput.value = "";
+  networkFilter.value = "all";
+  dateFilter.value = "all";
+  renderBoard();
+});
+
+exportButton.addEventListener("click", exportPosts);
+importInput.addEventListener("change", importPosts);
 
 dialog.addEventListener("click", (event) => {
   if (event.target === dialog) {
@@ -137,7 +178,7 @@ function loadPosts() {
 
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : samplePosts;
+    return Array.isArray(parsed) ? normalizePosts(parsed) : samplePosts;
   } catch {
     return samplePosts;
   }
@@ -148,11 +189,14 @@ function savePosts() {
 }
 
 function renderBoard() {
+  const visiblePosts = getVisiblePosts();
+
   board.innerHTML = "";
-  renderSummary();
+  renderFilters();
+  renderSummary(visiblePosts);
 
   stages.forEach((stage) => {
-    const stagePosts = posts
+    const stagePosts = visiblePosts
       .filter((post) => post.stage === stage.id)
       .sort((a, b) => b.createdAt - a.createdAt);
     const column = createColumn(stage, stagePosts);
@@ -181,9 +225,10 @@ function createColumn(stage, stagePosts) {
   if (stagePosts.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
+    const hasActiveFilters = filters.search || filters.network !== "all" || filters.date !== "all";
     empty.innerHTML = `
-      <strong>Пока пусто</strong>
-      <span>Перетащи карточку сюда или двигай стрелками</span>
+      <strong>${hasActiveFilters ? "Ничего не найдено" : "Пока пусто"}</strong>
+      <span>${hasActiveFilters ? "Измени фильтры или сбрось поиск" : "Перетащи карточку сюда или двигай стрелками"}</span>
     `;
     list.append(empty);
   }
@@ -212,8 +257,9 @@ function createColumn(stage, stagePosts) {
 function createPostCard(post) {
   const currentStageIndex = stages.findIndex((stage) => stage.id === post.stage);
   const stage = stages[currentStageIndex];
+  const dateStatus = getDateStatus(post);
   const card = document.createElement("article");
-  card.className = "post-card";
+  card.className = `post-card ${dateStatus.className}`;
   card.style.setProperty("--stage-accent", stage.accent);
   card.draggable = true;
   card.tabIndex = 0;
@@ -223,8 +269,8 @@ function createPostCard(post) {
       <p>${escapeHtml(post.text)}</p>
     </div>
     <div class="meta-row">
-      <span class="tag">${escapeHtml(post.network)}</span>
-      <span class="date">${formatDate(post.date)}</span>
+      <span class="tag tag-${post.network.toLowerCase()}">${escapeHtml(post.network)}</span>
+      <span class="date">${dateStatus.label}</span>
     </div>
     <div class="card-actions" aria-label="Перемещение по стадиям">
       <button class="move-button" type="button" data-direction="-1" aria-label="Переместить назад">←</button>
@@ -267,16 +313,16 @@ function createPostCard(post) {
   return card;
 }
 
-function renderSummary() {
-  const total = posts.length;
-  const published = posts.filter((post) => post.stage === "published").length;
-  const scheduled = posts.filter((post) => post.stage === "scheduled").length;
-  const withDate = posts.filter((post) => Boolean(post.date)).length;
+function renderSummary(visiblePosts) {
+  const total = visiblePosts.length;
+  const published = visiblePosts.filter((post) => post.stage === "published").length;
+  const scheduled = visiblePosts.filter((post) => post.stage === "scheduled").length;
+  const attention = visiblePosts.filter((post) => getDateStatus(post).isAttention).length;
 
   summaryStrip.innerHTML = `
     <article>
       <strong>${total}</strong>
-      <span>всего постов</span>
+      <span>${hasActiveFilters() ? "найдено" : "всего постов"}</span>
     </article>
     <article>
       <strong>${scheduled}</strong>
@@ -287,10 +333,46 @@ function renderSummary() {
       <span>опубликовано</span>
     </article>
     <article>
-      <strong>${withDate}</strong>
-      <span>с датой</span>
+      <strong>${attention}</strong>
+      <span>требует внимания</span>
     </article>
   `;
+}
+
+function renderFilters() {
+  const currentValue = networkFilter.value;
+  const networks = [...new Set(posts.map((post) => post.network))].sort((a, b) =>
+    a.localeCompare(b, "ru")
+  );
+
+  networkFilter.innerHTML = `
+    <option value="all">Все соцсети</option>
+    ${networks
+      .map((network) => `<option value="${escapeHtml(network)}">${escapeHtml(network)}</option>`)
+      .join("")}
+  `;
+
+  networkFilter.value = networks.includes(currentValue) ? currentValue : "all";
+  filters.network = networkFilter.value;
+}
+
+function getVisiblePosts() {
+  return posts.filter((post) => {
+    const query = `${post.title} ${post.text}`.toLowerCase();
+    const matchesSearch = !filters.search || query.includes(filters.search);
+    const matchesNetwork = filters.network === "all" || post.network === filters.network;
+    const dateStatus = getDateStatus(post);
+    const matchesDate =
+      filters.date === "all" ||
+      (filters.date === "withoutDate" && !post.date) ||
+      (filters.date === "overdue" && dateStatus.isOverdue);
+
+    return matchesSearch && matchesNetwork && matchesDate;
+  });
+}
+
+function hasActiveFilters() {
+  return Boolean(filters.search) || filters.network !== "all" || filters.date !== "all";
 }
 
 function openPostDialog(post = null) {
@@ -358,6 +440,93 @@ function formatDate(date) {
     month: "2-digit",
     year: "numeric"
   }).format(new Date(`${date}T00:00:00`));
+}
+
+function getDateStatus(post) {
+  if (!post.date) {
+    return {
+      className: post.stage === "scheduled" ? "needs-date" : "",
+      isAttention: post.stage === "scheduled",
+      isOverdue: false,
+      label: post.stage === "scheduled" ? "Нужна дата" : "Без даты"
+    };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const postDate = new Date(`${post.date}T00:00:00`);
+  const isOverdue = postDate < today && post.stage !== "published";
+
+  return {
+    className: isOverdue ? "is-overdue" : "",
+    isAttention: isOverdue,
+    isOverdue,
+    label: isOverdue ? `Просрочено: ${formatDate(post.date)}` : formatDate(post.date)
+  };
+}
+
+function exportPosts() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    posts
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json"
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "content-board-backup.json";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function importPosts(event) {
+  const file = event.target.files[0];
+
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.addEventListener("load", () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const importedPosts = Array.isArray(parsed) ? parsed : parsed.posts;
+
+      if (!Array.isArray(importedPosts)) {
+        throw new Error("Invalid backup");
+      }
+
+      posts = normalizePosts(importedPosts);
+      savePosts();
+      renderBoard();
+    } catch {
+      window.alert("Не получилось импортировать файл. Проверь, что это JSON-экспорт доски.");
+    } finally {
+      importInput.value = "";
+    }
+  });
+
+  reader.readAsText(file);
+}
+
+function normalizePosts(items) {
+  return items
+    .filter((post) => post && post.title && post.text)
+    .map((post) => ({
+      id: post.id || crypto.randomUUID(),
+      title: String(post.title),
+      text: String(post.text),
+      date: post.date || "",
+      network: post.network || "Другое",
+      stage: stages.some((stage) => stage.id === post.stage) ? post.stage : "idea",
+      createdAt: Number(post.createdAt) || Date.now()
+    }));
 }
 
 function escapeHtml(value) {
