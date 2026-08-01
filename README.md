@@ -59,3 +59,7 @@ start-local.cmd
 ```text
 http://localhost:5173
 ```
+
+## Публикация
+
+В репозитории есть GitHub Actions workflow для GitHub Pages. После push в `main` сайт публикуется из статических файлов проекта.
