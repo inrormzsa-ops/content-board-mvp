@@ -122,6 +122,21 @@ const postTemplates = {
   }
 };
 
+const priorityConfig = {
+  high: {
+    label: "Высокий",
+    weight: 3
+  },
+  normal: {
+    label: "Обычный",
+    weight: 2
+  },
+  low: {
+    label: "Низкий",
+    weight: 1
+  }
+};
+
 let posts = loadPosts();
 let editingPostId = null;
 let settings = loadSettings();
@@ -175,6 +190,7 @@ const templateInput = document.querySelector("#postTemplate");
 const applyTemplateButton = document.querySelector("#applyTemplateButton");
 const dateInput = document.querySelector("#postDate");
 const networkInput = document.querySelector("#postNetwork");
+const priorityInput = document.querySelector("#postPriority");
 const referenceInput = document.querySelector("#postReference");
 const checkTextInput = document.querySelector("#checkText");
 const checkDateInput = document.querySelector("#checkDate");
@@ -331,6 +347,7 @@ form.addEventListener("submit", (event) => {
     text: textInput.value.trim(),
     date: dateInput.value,
     network: networkInput.value,
+    priority: priorityInput.value,
     referenceUrl: normalizeUrl(referenceInput.value),
     checklist: readChecklist()
   };
@@ -485,6 +502,21 @@ function normalizeUrl(value) {
   return /^https?:\/\//i.test(trimmedValue) ? trimmedValue : `https://${trimmedValue}`;
 }
 
+function normalizePriority(value) {
+  return priorityConfig[value] ? value : "normal";
+}
+
+function getPriority(value) {
+  return priorityConfig[normalizePriority(value)];
+}
+
+function sortPostsForStage(firstPost, secondPost) {
+  const priorityDiff =
+    getPriority(secondPost.priority).weight - getPriority(firstPost.priority).weight;
+
+  return priorityDiff || secondPost.createdAt - firstPost.createdAt;
+}
+
 function renderBoard() {
   const visiblePosts = getVisiblePosts();
   const reminderItems = getReminderItems();
@@ -501,7 +533,7 @@ function renderBoard() {
   stages.forEach((stage) => {
     const stagePosts = visiblePosts
       .filter((post) => post.stage === stage.id)
-      .sort((a, b) => b.createdAt - a.createdAt);
+      .sort(sortPostsForStage);
     const column = createColumn(stage, stagePosts);
     board.append(column);
   });
@@ -563,6 +595,7 @@ function createPostCard(post) {
   const dateStatus = getDateStatus(post);
   const stageStatus = getStageStatus(post);
   const checklistStatus = getChecklistStatus(post);
+  const priority = getPriority(post.priority);
   const archiveActionLabel = post.archived ? "Вернуть" : "В архив";
   const canToggleArchive = post.archived || post.stage === "published";
   const card = document.createElement("article");
@@ -587,6 +620,9 @@ function createPostCard(post) {
     <div class="meta-row">
       <span class="tag tag-${post.network.toLowerCase()}">${escapeHtml(post.network)}</span>
       <span class="date">${dateStatus.label}</span>
+    </div>
+    <div class="card-badges">
+      <span class="priority-badge priority-${escapeAttribute(post.priority)}">${escapeHtml(priority.label)}</span>
     </div>
     ${
       post.referenceUrl
@@ -855,6 +891,7 @@ function openPostDialog(post = null) {
   titleInput.value = post?.title || "";
   textInput.value = post?.text || "";
   dateInput.value = post?.date || "";
+  priorityInput.value = normalizePriority(post?.priority);
   referenceInput.value = post?.referenceUrl || "";
   renderNetworkOptions(networkInput, post?.network || settings.defaultNetwork);
   writeChecklist(post?.checklist);
@@ -1444,6 +1481,7 @@ function normalizePosts(items) {
       text: String(post.text),
       date: post.date || "",
       network: post.network || "Другое",
+      priority: normalizePriority(post.priority),
       referenceUrl: normalizeUrl(post.referenceUrl || post.reference || ""),
       stage: stages.some((stage) => stage.id === post.stage) ? post.stage : "idea",
       createdAt: Number(post.createdAt) || Date.now(),
