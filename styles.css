@@ -178,7 +178,12 @@ h1 {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) minmax(160px, 220px) auto;
+  grid-template-columns:
+    minmax(220px, 1fr)
+    minmax(150px, 200px)
+    minmax(150px, 200px)
+    minmax(120px, 150px)
+    auto;
   gap: 12px;
   align-items: end;
   padding: 0 clamp(16px, 4vw, 44px) 18px;
@@ -369,6 +374,10 @@ h1 {
   border-color: rgba(234, 179, 8, 0.36);
 }
 
+.post-card.is-stale {
+  border-color: rgba(161, 92, 7, 0.38);
+}
+
 .post-card h3 {
   margin: 0;
   overflow-wrap: anywhere;
@@ -386,6 +395,21 @@ h1 {
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+.stage-age {
+  width: fit-content;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #f2f4f7;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.stage-age.is-stale {
+  background: #fff7e6;
+  color: #a15c07;
 }
 
 .meta-row,

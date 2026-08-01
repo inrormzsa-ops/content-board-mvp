@@ -1,4 +1,7 @@
 const STORAGE_KEY = "content-board-mvp-posts";
+const STALE_THRESHOLD_KEY = "content-board-mvp-stale-threshold";
+const DEFAULT_STALE_THRESHOLD_DAYS = 3;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const stages = [
   {
@@ -35,7 +38,8 @@ const samplePosts = [
     date: "",
     network: "Telegram",
     stage: "idea",
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    stageChangedAt: Date.now()
   },
   {
     id: crypto.randomUUID(),
@@ -44,12 +48,14 @@ const samplePosts = [
     date: new Date().toISOString().slice(0, 10),
     network: "VK",
     stage: "draft",
-    createdAt: Date.now() - 1
+    createdAt: Date.now() - 1,
+    stageChangedAt: Date.now() - DAY_IN_MS * 4
   }
 ];
 
 let posts = loadPosts();
 let editingPostId = null;
+let staleThresholdDays = loadStaleThreshold();
 let filters = {
   search: "",
   network: "all",
@@ -61,6 +67,7 @@ const summaryStrip = document.querySelector("#summaryStrip");
 const searchInput = document.querySelector("#searchInput");
 const networkFilter = document.querySelector("#networkFilter");
 const dateFilter = document.querySelector("#dateFilter");
+const staleThresholdInput = document.querySelector("#staleThresholdInput");
 const resetFiltersButton = document.querySelector("#resetFiltersButton");
 const exportButton = document.querySelector("#exportButton");
 const importInput = document.querySelector("#importInput");
@@ -76,6 +83,7 @@ const dateInput = document.querySelector("#postDate");
 const networkInput = document.querySelector("#postNetwork");
 
 renderBoard();
+staleThresholdInput.value = String(staleThresholdDays);
 
 addPostButton.addEventListener("click", () => openPostDialog());
 closeDialogButton.addEventListener("click", closePostDialog);
@@ -92,6 +100,16 @@ networkFilter.addEventListener("change", () => {
 
 dateFilter.addEventListener("change", () => {
   filters.date = dateFilter.value;
+  renderBoard();
+});
+
+staleThresholdInput.addEventListener("change", () => {
+  const nextValue = Number(staleThresholdInput.value);
+  staleThresholdDays = Number.isFinite(nextValue)
+    ? Math.min(Math.max(Math.round(nextValue), 1), 30)
+    : DEFAULT_STALE_THRESHOLD_DAYS;
+  staleThresholdInput.value = String(staleThresholdDays);
+  localStorage.setItem(STALE_THRESHOLD_KEY, String(staleThresholdDays));
   renderBoard();
 });
 
@@ -140,7 +158,8 @@ form.addEventListener("submit", (event) => {
         id: crypto.randomUUID(),
         ...values,
         stage: "idea",
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        stageChangedAt: Date.now()
       },
       ...posts
     ];
@@ -186,6 +205,16 @@ function loadPosts() {
 
 function savePosts() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+}
+
+function loadStaleThreshold() {
+  const storedValue = Number(localStorage.getItem(STALE_THRESHOLD_KEY));
+
+  if (!Number.isFinite(storedValue)) {
+    return DEFAULT_STALE_THRESHOLD_DAYS;
+  }
+
+  return Math.min(Math.max(Math.round(storedValue), 1), 30);
 }
 
 function renderBoard() {
@@ -258,8 +287,9 @@ function createPostCard(post) {
   const currentStageIndex = stages.findIndex((stage) => stage.id === post.stage);
   const stage = stages[currentStageIndex];
   const dateStatus = getDateStatus(post);
+  const stageStatus = getStageStatus(post);
   const card = document.createElement("article");
-  card.className = `post-card ${dateStatus.className}`;
+  card.className = `post-card ${dateStatus.className} ${stageStatus.isStale ? "is-stale" : ""}`;
   card.style.setProperty("--stage-accent", stage.accent);
   card.draggable = true;
   card.tabIndex = 0;
@@ -267,6 +297,9 @@ function createPostCard(post) {
     <div>
       <h3>${escapeHtml(post.title)}</h3>
       <p>${escapeHtml(post.text)}</p>
+    </div>
+    <div class="stage-age ${stageStatus.isStale ? "is-stale" : ""}">
+      ${stageStatus.label}
     </div>
     <div class="meta-row">
       <span class="tag tag-${post.network.toLowerCase()}">${escapeHtml(post.network)}</span>
@@ -317,7 +350,9 @@ function renderSummary(visiblePosts) {
   const total = visiblePosts.length;
   const published = visiblePosts.filter((post) => post.stage === "published").length;
   const scheduled = visiblePosts.filter((post) => post.stage === "scheduled").length;
-  const attention = visiblePosts.filter((post) => getDateStatus(post).isAttention).length;
+  const attention = visiblePosts.filter(
+    (post) => getDateStatus(post).isAttention || getStageStatus(post).isStale
+  ).length;
 
   summaryStrip.innerHTML = `
     <article>
@@ -362,10 +397,12 @@ function getVisiblePosts() {
     const matchesSearch = !filters.search || query.includes(filters.search);
     const matchesNetwork = filters.network === "all" || post.network === filters.network;
     const dateStatus = getDateStatus(post);
+    const stageStatus = getStageStatus(post);
     const matchesDate =
       filters.date === "all" ||
       (filters.date === "withoutDate" && !post.date) ||
-      (filters.date === "overdue" && dateStatus.isOverdue);
+      (filters.date === "overdue" && dateStatus.isOverdue) ||
+      (filters.date === "stale" && stageStatus.isStale);
 
     return matchesSearch && matchesNetwork && matchesDate;
   });
@@ -424,7 +461,7 @@ function movePostToStage(postId, stageId) {
   }
 
   posts = posts.map((item) =>
-    item.id === postId ? { ...item, stage: stageId } : item
+    item.id === postId ? { ...item, stage: stageId, stageChangedAt: Date.now() } : item
   );
   savePosts();
   renderBoard();
@@ -463,6 +500,26 @@ function getDateStatus(post) {
     isAttention: isOverdue,
     isOverdue,
     label: isOverdue ? `Просрочено: ${formatDate(post.date)}` : formatDate(post.date)
+  };
+}
+
+function getStageStatus(post) {
+  const changedAt = Number(post.stageChangedAt || post.createdAt || Date.now());
+  const ageDays = Math.max(0, Math.floor((Date.now() - changedAt) / DAY_IN_MS));
+  const isStale = post.stage !== "published" && ageDays >= staleThresholdDays;
+
+  if (ageDays === 0) {
+    return {
+      ageDays,
+      isStale,
+      label: "На стадии сегодня"
+    };
+  }
+
+  return {
+    ageDays,
+    isStale,
+    label: `На стадии ${formatDays(ageDays)}`
   };
 }
 
@@ -525,8 +582,28 @@ function normalizePosts(items) {
       date: post.date || "",
       network: post.network || "Другое",
       stage: stages.some((stage) => stage.id === post.stage) ? post.stage : "idea",
-      createdAt: Number(post.createdAt) || Date.now()
+      createdAt: Number(post.createdAt) || Date.now(),
+      stageChangedAt: Number(post.stageChangedAt) || Number(post.createdAt) || Date.now()
     }));
+}
+
+function formatDays(days) {
+  const lastTwoDigits = days % 100;
+  const lastDigit = days % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return `${days} дней`;
+  }
+
+  if (lastDigit === 1) {
+    return `${days} день`;
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return `${days} дня`;
+  }
+
+  return `${days} дней`;
 }
 
 function escapeHtml(value) {
