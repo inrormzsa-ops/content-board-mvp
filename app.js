@@ -175,6 +175,7 @@ const templateInput = document.querySelector("#postTemplate");
 const applyTemplateButton = document.querySelector("#applyTemplateButton");
 const dateInput = document.querySelector("#postDate");
 const networkInput = document.querySelector("#postNetwork");
+const referenceInput = document.querySelector("#postReference");
 const checkTextInput = document.querySelector("#checkText");
 const checkDateInput = document.querySelector("#checkDate");
 const checkReviewInput = document.querySelector("#checkReview");
@@ -330,6 +331,7 @@ form.addEventListener("submit", (event) => {
     text: textInput.value.trim(),
     date: dateInput.value,
     network: networkInput.value,
+    referenceUrl: normalizeUrl(referenceInput.value),
     checklist: readChecklist()
   };
 
@@ -473,6 +475,16 @@ function parseNetworks(value) {
   return networks.length ? networks : [...defaultSettings.networks];
 }
 
+function normalizeUrl(value) {
+  const trimmedValue = String(value || "").trim();
+
+  if (!trimmedValue) {
+    return "";
+  }
+
+  return /^https?:\/\//i.test(trimmedValue) ? trimmedValue : `https://${trimmedValue}`;
+}
+
 function renderBoard() {
   const visiblePosts = getVisiblePosts();
   const reminderItems = getReminderItems();
@@ -577,6 +589,11 @@ function createPostCard(post) {
       <span class="date">${dateStatus.label}</span>
     </div>
     ${
+      post.referenceUrl
+        ? `<a class="reference-link" href="${escapeAttribute(post.referenceUrl)}" target="_blank" rel="noreferrer">Материал</a>`
+        : ""
+    }
+    ${
       canToggleArchive
         ? `<div class="card-tools">
             ${post.archived ? '<span class="archive-badge">Архив</span>' : ""}
@@ -596,6 +613,10 @@ function createPostCard(post) {
     post.archived || currentStageIndex === stages.length - 1;
 
   card.addEventListener("click", (event) => {
+    if (event.target.closest(".reference-link")) {
+      return;
+    }
+
     if (event.target.closest("[data-archive-action]")) {
       togglePostArchive(post.id, !post.archived);
       return;
@@ -834,6 +855,7 @@ function openPostDialog(post = null) {
   titleInput.value = post?.title || "";
   textInput.value = post?.text || "";
   dateInput.value = post?.date || "";
+  referenceInput.value = post?.referenceUrl || "";
   renderNetworkOptions(networkInput, post?.network || settings.defaultNetwork);
   writeChecklist(post?.checklist);
   renderHistory(post);
@@ -1422,6 +1444,7 @@ function normalizePosts(items) {
       text: String(post.text),
       date: post.date || "",
       network: post.network || "Другое",
+      referenceUrl: normalizeUrl(post.referenceUrl || post.reference || ""),
       stage: stages.some((stage) => stage.id === post.stage) ? post.stage : "idea",
       createdAt: Number(post.createdAt) || Date.now(),
       stageChangedAt: Number(post.stageChangedAt) || Number(post.createdAt) || Date.now(),
@@ -1463,4 +1486,8 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(String(value));
 }

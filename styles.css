@@ -729,6 +729,27 @@ h1 {
   font-weight: 700;
 }
 
+.reference-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.reference-link:hover {
+  border-color: rgba(15, 118, 110, 0.36);
+  background: #eefaf7;
+}
+
 .is-overdue .date {
   color: var(--danger);
   font-weight: 900;
