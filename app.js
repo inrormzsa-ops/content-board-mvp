@@ -184,6 +184,8 @@ const aiPromptButton = document.querySelector("#aiPromptButton");
 const aiOutput = document.querySelector("#aiOutput");
 const copyAiOutputButton = document.querySelector("#copyAiOutputButton");
 const insertAiOutputButton = document.querySelector("#insertAiOutputButton");
+const historyPanel = document.querySelector("#historyPanel");
+const historyList = document.querySelector("#historyList");
 
 staleThresholdInput.value = String(staleThresholdDays);
 applySettings();
@@ -337,9 +339,16 @@ form.addEventListener("submit", (event) => {
 
   if (editingPostId) {
     posts = posts.map((post) =>
-      post.id === editingPostId ? { ...post, ...values } : post
+      post.id === editingPostId
+        ? {
+            ...post,
+            ...values,
+            history: addHistoryEvent(post.history, "updated", "Карточка отредактирована")
+          }
+        : post
     );
   } else {
+    const now = Date.now();
     posts = [
       {
         id: crypto.randomUUID(),
@@ -347,8 +356,9 @@ form.addEventListener("submit", (event) => {
         stage: "idea",
         archived: false,
         archivedAt: "",
-        createdAt: Date.now(),
-        stageChangedAt: Date.now()
+        createdAt: now,
+        stageChangedAt: now,
+        history: createInitialHistory(now)
       },
       ...posts
     ];
@@ -826,6 +836,7 @@ function openPostDialog(post = null) {
   dateInput.value = post?.date || "";
   renderNetworkOptions(networkInput, post?.network || settings.defaultNetwork);
   writeChecklist(post?.checklist);
+  renderHistory(post);
   deletePostButton.classList.toggle("is-hidden", !post);
   archivePostButton.classList.toggle("is-hidden", !post || (!post.archived && post.stage !== "published"));
   archivePostButton.textContent = post?.archived ? "Вернуть из архива" : "В архив";
@@ -838,6 +849,8 @@ function closePostDialog() {
   writeChecklist();
   aiOutput.value = "";
   templateInput.value = "";
+  historyPanel.classList.add("is-hidden");
+  historyList.innerHTML = "";
   editingPostId = null;
   dialog.close();
 }
@@ -856,6 +869,62 @@ function writeChecklist(checklist = {}) {
   checkDateInput.checked = Boolean(checklist.date);
   checkReviewInput.checked = Boolean(checklist.review);
   checkPublishedInput.checked = Boolean(checklist.published);
+}
+
+function renderHistory(post) {
+  if (!post) {
+    historyPanel.classList.add("is-hidden");
+    historyList.innerHTML = "";
+    return;
+  }
+
+  const history = normalizeHistory(post).slice(-6).reverse();
+  historyPanel.classList.remove("is-hidden");
+  historyList.innerHTML = history
+    .map(
+      (item) => `
+        <article class="history-item">
+          <span>${escapeHtml(formatDateTime(item.at))}</span>
+          <strong>${escapeHtml(item.label)}</strong>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function createInitialHistory(timestamp = Date.now()) {
+  return [
+    {
+      type: "created",
+      label: "Карточка создана",
+      at: timestamp
+    }
+  ];
+}
+
+function addHistoryEvent(history, type, label) {
+  return [
+    ...normalizeHistory({ history, createdAt: Date.now() }),
+    {
+      type,
+      label,
+      at: Date.now()
+    }
+  ].slice(-20);
+}
+
+function normalizeHistory(post) {
+  const history = Array.isArray(post.history)
+    ? post.history
+        .filter((item) => item && item.label)
+        .map((item) => ({
+          type: String(item.type || "updated"),
+          label: String(item.label),
+          at: Number(item.at) || Number(post.createdAt) || Date.now()
+        }))
+    : [];
+
+  return history.length ? history : createInitialHistory(Number(post.createdAt) || Date.now());
 }
 
 function applySelectedTemplate() {
@@ -914,7 +983,12 @@ function movePostToStage(postId, stageId) {
           stage: stageId,
           stageChangedAt: Date.now(),
           archived: stageId === "published" ? item.archived : false,
-          archivedAt: stageId === "published" ? item.archivedAt : ""
+          archivedAt: stageId === "published" ? item.archivedAt : "",
+          history: addHistoryEvent(
+            item.history,
+            "moved",
+            `Перемещена: ${getStageTitle(item.stage)} → ${getStageTitle(stageId)}`
+          )
         }
       : item
   );
@@ -935,7 +1009,12 @@ function togglePostArchive(postId, archived) {
     return {
       ...post,
       archived,
-      archivedAt: archived ? Date.now() : ""
+      archivedAt: archived ? Date.now() : "",
+      history: addHistoryEvent(
+        post.history,
+        archived ? "archived" : "restored",
+        archived ? "Карточка отправлена в архив" : "Карточка возвращена из архива"
+      )
     };
   });
 
@@ -953,6 +1032,20 @@ function formatDate(date) {
     month: "2-digit",
     year: "numeric"
   }).format(new Date(`${date}T00:00:00`));
+}
+
+function formatDateTime(timestamp) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(Number(timestamp) || Date.now()));
+}
+
+function getStageTitle(stageId) {
+  return stages.find((stage) => stage.id === stageId)?.title || stageId;
 }
 
 function getDateStatus(post) {
@@ -1334,6 +1427,7 @@ function normalizePosts(items) {
       stageChangedAt: Number(post.stageChangedAt) || Number(post.createdAt) || Date.now(),
       archived: Boolean(post.archived),
       archivedAt: post.archived ? Number(post.archivedAt) || Date.now() : "",
+      history: normalizeHistory(post),
       checklist: {
         text: Boolean(post.checklist?.text),
         date: Boolean(post.checklist?.date),

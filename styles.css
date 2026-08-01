@@ -1007,6 +1007,49 @@ textarea {
   line-height: 1.45;
 }
 
+.history-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfe;
+}
+
+.history-panel h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.history-item span {
+  color: var(--subtle);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.history-item strong {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .form-actions {
   padding-top: 4px;
 }
@@ -1142,6 +1185,10 @@ textarea {
   }
 
   .template-row {
+    grid-template-columns: 1fr;
+  }
+
+  .history-item {
     grid-template-columns: 1fr;
   }
 
