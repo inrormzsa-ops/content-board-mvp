@@ -182,6 +182,7 @@ h1 {
     minmax(220px, 1fr)
     minmax(150px, 200px)
     minmax(150px, 200px)
+    minmax(120px, 170px)
     minmax(120px, 150px)
     auto;
   gap: 12px;
@@ -349,8 +350,10 @@ h1 {
 
 .post-card:focus-visible,
 .primary-action:focus-visible,
+.secondary-action:focus-visible,
 .danger-action:focus-visible,
 .icon-button:focus-visible,
+.archive-button:focus-visible,
 .move-button:focus-visible {
   outline: 3px solid rgba(15, 118, 110, 0.3);
   outline-offset: 2px;
@@ -376,6 +379,12 @@ h1 {
 
 .post-card.is-stale {
   border-color: rgba(161, 92, 7, 0.38);
+}
+
+.post-card.is-archived {
+  border-style: dashed;
+  background: #f8fafc;
+  opacity: 0.86;
 }
 
 .post-card h3 {
@@ -505,6 +514,40 @@ h1 {
   border-top: 1px solid #eef2f7;
 }
 
+.card-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.archive-badge {
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #eef2f7;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.archive-button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.archive-button:hover {
+  border-color: rgba(15, 118, 110, 0.36);
+  background: #eefaf7;
+}
+
 .card-actions span {
   color: var(--subtle);
   font-size: 11px;
@@ -583,6 +626,13 @@ h1 {
 
 .dialog-header {
   padding-bottom: 4px;
+}
+
+.form-secondary-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .dialog-header h2 {

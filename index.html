@@ -58,6 +58,15 @@
       </label>
 
       <label>
+        Архив
+        <select id="archiveFilter">
+          <option value="active">Активные</option>
+          <option value="archived">Архив</option>
+          <option value="all">Все</option>
+        </select>
+      </label>
+
+      <label>
         Зависла после
         <input id="staleThresholdInput" type="number" min="1" max="30" step="1" />
       </label>
@@ -130,7 +139,10 @@
         </fieldset>
 
         <div class="form-actions">
-          <button class="danger-action" id="deletePostButton" type="button">Удалить</button>
+          <div class="form-secondary-actions">
+            <button class="danger-action" id="deletePostButton" type="button">Удалить</button>
+            <button class="secondary-action is-hidden" id="archivePostButton" type="button">В архив</button>
+          </div>
           <button class="primary-action" type="submit">Сохранить</button>
         </div>
       </form>

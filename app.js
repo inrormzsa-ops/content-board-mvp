@@ -59,7 +59,8 @@ let staleThresholdDays = loadStaleThreshold();
 let filters = {
   search: "",
   network: "all",
-  date: "all"
+  date: "all",
+  archive: "active"
 };
 
 const board = document.querySelector("#board");
@@ -67,6 +68,7 @@ const summaryStrip = document.querySelector("#summaryStrip");
 const searchInput = document.querySelector("#searchInput");
 const networkFilter = document.querySelector("#networkFilter");
 const dateFilter = document.querySelector("#dateFilter");
+const archiveFilter = document.querySelector("#archiveFilter");
 const staleThresholdInput = document.querySelector("#staleThresholdInput");
 const resetFiltersButton = document.querySelector("#resetFiltersButton");
 const exportButton = document.querySelector("#exportButton");
@@ -76,6 +78,7 @@ const form = document.querySelector("#postForm");
 const addPostButton = document.querySelector("#addPostButton");
 const closeDialogButton = document.querySelector("#closeDialogButton");
 const deletePostButton = document.querySelector("#deletePostButton");
+const archivePostButton = document.querySelector("#archivePostButton");
 const dialogTitle = document.querySelector("#dialogTitle");
 const titleInput = document.querySelector("#postTitle");
 const textInput = document.querySelector("#postText");
@@ -107,6 +110,11 @@ dateFilter.addEventListener("change", () => {
   renderBoard();
 });
 
+archiveFilter.addEventListener("change", () => {
+  filters.archive = archiveFilter.value;
+  renderBoard();
+});
+
 staleThresholdInput.addEventListener("change", () => {
   const nextValue = Number(staleThresholdInput.value);
   staleThresholdDays = Number.isFinite(nextValue)
@@ -121,11 +129,13 @@ resetFiltersButton.addEventListener("click", () => {
   filters = {
     search: "",
     network: "all",
-    date: "all"
+    date: "all",
+    archive: "active"
   };
   searchInput.value = "";
   networkFilter.value = "all";
   dateFilter.value = "all";
+  archiveFilter.value = "active";
   renderBoard();
 });
 
@@ -163,6 +173,8 @@ form.addEventListener("submit", (event) => {
         id: crypto.randomUUID(),
         ...values,
         stage: "idea",
+        archived: false,
+        archivedAt: "",
         createdAt: Date.now(),
         stageChangedAt: Date.now()
       },
@@ -190,6 +202,21 @@ deletePostButton.addEventListener("click", () => {
   posts = posts.filter((item) => item.id !== editingPostId);
   savePosts();
   renderBoard();
+  closePostDialog();
+});
+
+archivePostButton.addEventListener("click", () => {
+  if (!editingPostId) {
+    return;
+  }
+
+  const post = posts.find((item) => item.id === editingPostId);
+
+  if (!post) {
+    return;
+  }
+
+  togglePostArchive(post.id, !post.archived);
   closePostDialog();
 });
 
@@ -259,7 +286,7 @@ function createColumn(stage, stagePosts) {
   if (stagePosts.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    const hasActiveFilters = filters.search || filters.network !== "all" || filters.date !== "all";
+    const hasActiveFilters = filters.search || filters.network !== "all" || filters.date !== "all" || filters.archive !== "active";
     empty.innerHTML = `
       <strong>${hasActiveFilters ? "Ничего не найдено" : "Пока пусто"}</strong>
       <span>${hasActiveFilters ? "Измени фильтры или сбрось поиск" : "Перетащи карточку сюда или двигай стрелками"}</span>
@@ -294,10 +321,14 @@ function createPostCard(post) {
   const dateStatus = getDateStatus(post);
   const stageStatus = getStageStatus(post);
   const checklistStatus = getChecklistStatus(post);
+  const archiveActionLabel = post.archived ? "Вернуть" : "В архив";
+  const canToggleArchive = post.archived || post.stage === "published";
   const card = document.createElement("article");
-  card.className = `post-card ${dateStatus.className} ${stageStatus.isStale ? "is-stale" : ""}`;
+  card.className = `post-card ${dateStatus.className} ${stageStatus.isStale ? "is-stale" : ""} ${
+    post.archived ? "is-archived" : ""
+  }`;
   card.style.setProperty("--stage-accent", stage.accent);
-  card.draggable = true;
+  card.draggable = !post.archived;
   card.tabIndex = 0;
   card.innerHTML = `
     <div>
@@ -315,6 +346,14 @@ function createPostCard(post) {
       <span class="tag tag-${post.network.toLowerCase()}">${escapeHtml(post.network)}</span>
       <span class="date">${dateStatus.label}</span>
     </div>
+    ${
+      canToggleArchive
+        ? `<div class="card-tools">
+            ${post.archived ? '<span class="archive-badge">Архив</span>' : ""}
+            <button class="archive-button" type="button" data-archive-action>${archiveActionLabel}</button>
+          </div>`
+        : ""
+    }
     <div class="card-actions" aria-label="Перемещение по стадиям">
       <button class="move-button" type="button" data-direction="-1" aria-label="Переместить назад">←</button>
       <span>Стадия: ${escapeHtml(stage.title)}</span>
@@ -322,11 +361,16 @@ function createPostCard(post) {
     </div>
   `;
 
-  card.querySelector('[data-direction="-1"]').disabled = currentStageIndex === 0;
+  card.querySelector('[data-direction="-1"]').disabled = post.archived || currentStageIndex === 0;
   card.querySelector('[data-direction="1"]').disabled =
-    currentStageIndex === stages.length - 1;
+    post.archived || currentStageIndex === stages.length - 1;
 
   card.addEventListener("click", (event) => {
+    if (event.target.closest("[data-archive-action]")) {
+      togglePostArchive(post.id, !post.archived);
+      return;
+    }
+
     const moveButton = event.target.closest(".move-button");
 
     if (moveButton) {
@@ -345,6 +389,11 @@ function createPostCard(post) {
   });
 
   card.addEventListener("dragstart", (event) => {
+    if (post.archived) {
+      event.preventDefault();
+      return;
+    }
+
     event.dataTransfer.setData("text/plain", post.id);
     card.classList.add("dragging");
   });
@@ -408,18 +457,27 @@ function getVisiblePosts() {
     const matchesNetwork = filters.network === "all" || post.network === filters.network;
     const dateStatus = getDateStatus(post);
     const stageStatus = getStageStatus(post);
+    const matchesArchive =
+      filters.archive === "all" ||
+      (filters.archive === "active" && !post.archived) ||
+      (filters.archive === "archived" && post.archived);
     const matchesDate =
       filters.date === "all" ||
       (filters.date === "withoutDate" && !post.date) ||
       (filters.date === "overdue" && dateStatus.isOverdue) ||
       (filters.date === "stale" && stageStatus.isStale);
 
-    return matchesSearch && matchesNetwork && matchesDate;
+    return matchesSearch && matchesNetwork && matchesArchive && matchesDate;
   });
 }
 
 function hasActiveFilters() {
-  return Boolean(filters.search) || filters.network !== "all" || filters.date !== "all";
+  return (
+    Boolean(filters.search) ||
+    filters.network !== "all" ||
+    filters.date !== "all" ||
+    filters.archive !== "active"
+  );
 }
 
 function openPostDialog(post = null) {
@@ -431,6 +489,8 @@ function openPostDialog(post = null) {
   networkInput.value = post?.network || "Instagram";
   writeChecklist(post?.checklist);
   deletePostButton.classList.toggle("is-hidden", !post);
+  archivePostButton.classList.toggle("is-hidden", !post || (!post.archived && post.stage !== "published"));
+  archivePostButton.textContent = post?.archived ? "Вернуть из архива" : "В архив";
   dialog.showModal();
   titleInput.focus();
 }
@@ -476,7 +536,7 @@ function movePostByOneStage(postId, direction) {
 function movePostToStage(postId, stageId) {
   const post = posts.find((item) => item.id === postId);
 
-  if (!post || post.stage === stageId) {
+  if (!post || post.stage === stageId || post.archived) {
     return;
   }
 
@@ -489,8 +549,37 @@ function movePostToStage(postId, stageId) {
   }
 
   posts = posts.map((item) =>
-    item.id === postId ? { ...item, stage: stageId, stageChangedAt: Date.now() } : item
+    item.id === postId
+      ? {
+          ...item,
+          stage: stageId,
+          stageChangedAt: Date.now(),
+          archived: stageId === "published" ? item.archived : false,
+          archivedAt: stageId === "published" ? item.archivedAt : ""
+        }
+      : item
   );
+  savePosts();
+  renderBoard();
+}
+
+function togglePostArchive(postId, archived) {
+  posts = posts.map((post) => {
+    if (post.id !== postId) {
+      return post;
+    }
+
+    if (!post.archived && post.stage !== "published") {
+      return post;
+    }
+
+    return {
+      ...post,
+      archived,
+      archivedAt: archived ? Date.now() : ""
+    };
+  });
+
   savePosts();
   renderBoard();
 }
@@ -629,6 +718,8 @@ function normalizePosts(items) {
       stage: stages.some((stage) => stage.id === post.stage) ? post.stage : "idea",
       createdAt: Number(post.createdAt) || Date.now(),
       stageChangedAt: Number(post.stageChangedAt) || Number(post.createdAt) || Date.now(),
+      archived: Boolean(post.archived),
+      archivedAt: post.archived ? Number(post.archivedAt) || Date.now() : "",
       checklist: {
         text: Boolean(post.checklist?.text),
         date: Boolean(post.checklist?.date),
