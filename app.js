@@ -138,6 +138,7 @@ const dateFilter = document.querySelector("#dateFilter");
 const archiveFilter = document.querySelector("#archiveFilter");
 const staleThresholdInput = document.querySelector("#staleThresholdInput");
 const resetFiltersButton = document.querySelector("#resetFiltersButton");
+const copyVisibleButton = document.querySelector("#copyVisibleButton");
 const exportButton = document.querySelector("#exportButton");
 const importInput = document.querySelector("#importInput");
 const dialog = document.querySelector("#postDialog");
@@ -233,6 +234,10 @@ resetFiltersButton.addEventListener("click", () => {
 
 exportButton.addEventListener("click", exportPosts);
 importInput.addEventListener("change", importPosts);
+
+copyVisibleButton.addEventListener("click", async () => {
+  await copyText(buildVisiblePostsDigest(getVisiblePosts()));
+});
 
 aiDraftButton.addEventListener("click", () => {
   aiOutput.value = buildLocalDraft();
@@ -378,6 +383,7 @@ function renderBoard() {
   renderSummary(visiblePosts);
   renderReminders(reminderItems);
   renderSchedule(scheduleItems);
+  copyVisibleButton.disabled = visiblePosts.length === 0;
 
   stages.forEach((stage) => {
     const stagePosts = visiblePosts
@@ -953,6 +959,26 @@ function buildReminderDigest(reminderItems) {
     ...lines,
     "",
     `Порог зависания: ${formatDays(staleThresholdDays)}.`
+  ].join("\n");
+}
+
+function buildVisiblePostsDigest(visiblePosts) {
+  if (visiblePosts.length === 0) {
+    return "По текущим фильтрам карточек нет.";
+  }
+
+  const lines = visiblePosts.map((post, index) => {
+    const stageTitle = stages.find((stage) => stage.id === post.stage)?.title || post.stage;
+    const dateLabel = post.date ? formatDate(post.date) : "без даты";
+    const archiveLabel = post.archived ? ", архив" : "";
+
+    return `${index + 1}. ${post.title} — ${stageTitle}, ${post.network}, ${dateLabel}${archiveLabel}.`;
+  });
+
+  return [
+    hasActiveFilters() ? "Карточки по текущим фильтрам:" : "Все активные карточки:",
+    "",
+    ...lines
   ].join("\n");
 }
 
