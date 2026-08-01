@@ -27,6 +27,18 @@
 npm start
 ```
 
+Если PowerShell блокирует `npm.ps1`, запусти так:
+
+```powershell
+npm.cmd start
+```
+
+Или двойным кликом по файлу:
+
+```text
+start-local.cmd
+```
+
 Открой в браузере:
 
 ```text
