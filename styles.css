@@ -768,7 +768,8 @@ h1 {
   line-height: 1.4;
 }
 
-.post-dialog {
+.post-dialog,
+.settings-dialog {
   width: min(640px, calc(100vw - 32px));
   border: 0;
   border-radius: 8px;
@@ -776,12 +777,14 @@ h1 {
   box-shadow: var(--shadow-lift);
 }
 
-.post-dialog::backdrop {
+.post-dialog::backdrop,
+.settings-dialog::backdrop {
   background: rgba(23, 32, 51, 0.52);
   backdrop-filter: blur(3px);
 }
 
-.post-form {
+.post-form,
+.settings-form {
   display: grid;
   gap: 16px;
   padding: 24px;
@@ -1015,7 +1018,8 @@ textarea {
   }
 
   .storage-status,
-  .primary-action {
+  .primary-action,
+  #settingsButton {
     width: 100%;
   }
 

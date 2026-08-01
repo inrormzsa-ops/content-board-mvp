@@ -1,7 +1,14 @@
 const STORAGE_KEY = "content-board-mvp-posts";
+const SETTINGS_KEY = "content-board-mvp-settings";
 const STALE_THRESHOLD_KEY = "content-board-mvp-stale-threshold";
 const DEFAULT_STALE_THRESHOLD_DAYS = 3;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const defaultSettings = {
+  projectName: "Доска контента",
+  projectSubtitle: "Собирай идеи, доводи посты до публикации и не теряй, что на какой стадии.",
+  defaultNetwork: "Instagram",
+  networks: ["Instagram", "Telegram", "VK", "YouTube", "Другое"]
+};
 
 const stages = [
   {
@@ -117,6 +124,7 @@ const postTemplates = {
 
 let posts = loadPosts();
 let editingPostId = null;
+let settings = loadSettings();
 let staleThresholdDays = loadStaleThreshold();
 let filters = {
   search: "",
@@ -126,6 +134,8 @@ let filters = {
 };
 
 const board = document.querySelector("#board");
+const projectTitle = document.querySelector(".header-copy h1");
+const projectSubtitle = document.querySelector(".subtitle");
 const summaryStrip = document.querySelector("#summaryStrip");
 const reminderList = document.querySelector("#reminderList");
 const copyRemindersButton = document.querySelector("#copyRemindersButton");
@@ -147,6 +157,16 @@ const addPostButton = document.querySelector("#addPostButton");
 const closeDialogButton = document.querySelector("#closeDialogButton");
 const deletePostButton = document.querySelector("#deletePostButton");
 const archivePostButton = document.querySelector("#archivePostButton");
+const settingsButton = document.querySelector("#settingsButton");
+const settingsDialog = document.querySelector("#settingsDialog");
+const settingsForm = document.querySelector("#settingsForm");
+const closeSettingsButton = document.querySelector("#closeSettingsButton");
+const resetSettingsButton = document.querySelector("#resetSettingsButton");
+const projectNameInput = document.querySelector("#projectNameInput");
+const projectSubtitleInput = document.querySelector("#projectSubtitleInput");
+const defaultNetworkInput = document.querySelector("#defaultNetworkInput");
+const settingsStaleThresholdInput = document.querySelector("#settingsStaleThresholdInput");
+const networksInput = document.querySelector("#networksInput");
 const dialogTitle = document.querySelector("#dialogTitle");
 const titleInput = document.querySelector("#postTitle");
 const textInput = document.querySelector("#postText");
@@ -164,11 +184,15 @@ const aiOutput = document.querySelector("#aiOutput");
 const copyAiOutputButton = document.querySelector("#copyAiOutputButton");
 const insertAiOutputButton = document.querySelector("#insertAiOutputButton");
 
-renderBoard();
 staleThresholdInput.value = String(staleThresholdDays);
+applySettings();
+renderBoard();
 
 addPostButton.addEventListener("click", () => openPostDialog());
 closeDialogButton.addEventListener("click", closePostDialog);
+settingsButton.addEventListener("click", openSettingsDialog);
+closeSettingsButton.addEventListener("click", closeSettingsDialog);
+resetSettingsButton.addEventListener("click", resetSettings);
 
 copyRemindersButton.addEventListener("click", async () => {
   await copyText(buildReminderDigest(getReminderItems()));
@@ -209,10 +233,7 @@ archiveFilter.addEventListener("change", () => {
 });
 
 staleThresholdInput.addEventListener("change", () => {
-  const nextValue = Number(staleThresholdInput.value);
-  staleThresholdDays = Number.isFinite(nextValue)
-    ? Math.min(Math.max(Math.round(nextValue), 1), 30)
-    : DEFAULT_STALE_THRESHOLD_DAYS;
+  staleThresholdDays = normalizeStaleThreshold(staleThresholdInput.value);
   staleThresholdInput.value = String(staleThresholdDays);
   localStorage.setItem(STALE_THRESHOLD_KEY, String(staleThresholdDays));
   renderBoard();
@@ -270,6 +291,32 @@ dialog.addEventListener("click", (event) => {
   if (event.target === dialog) {
     closePostDialog();
   }
+});
+
+settingsDialog.addEventListener("click", (event) => {
+  if (event.target === settingsDialog) {
+    closeSettingsDialog();
+  }
+});
+
+settingsForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const nextNetworks = parseNetworks(networksInput.value);
+  settings = {
+    projectName: projectNameInput.value.trim() || defaultSettings.projectName,
+    projectSubtitle: projectSubtitleInput.value.trim() || defaultSettings.projectSubtitle,
+    defaultNetwork: nextNetworks.includes(defaultNetworkInput.value)
+      ? defaultNetworkInput.value
+      : nextNetworks[0],
+    networks: nextNetworks
+  };
+  staleThresholdDays = normalizeStaleThreshold(settingsStaleThresholdInput.value);
+  staleThresholdInput.value = String(staleThresholdDays);
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  localStorage.setItem(STALE_THRESHOLD_KEY, String(staleThresholdDays));
+  applySettings();
+  renderBoard();
+  closeSettingsDialog();
 });
 
 form.addEventListener("submit", (event) => {
@@ -363,6 +410,28 @@ function savePosts() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
 }
 
+function loadSettings() {
+  const raw = localStorage.getItem(SETTINGS_KEY);
+
+  if (!raw) {
+    return { ...defaultSettings, networks: [...defaultSettings.networks] };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const networks = parseNetworks(Array.isArray(parsed.networks) ? parsed.networks.join(",") : parsed.networks);
+
+    return {
+      projectName: String(parsed.projectName || defaultSettings.projectName),
+      projectSubtitle: String(parsed.projectSubtitle || defaultSettings.projectSubtitle),
+      defaultNetwork: networks.includes(parsed.defaultNetwork) ? parsed.defaultNetwork : networks[0],
+      networks
+    };
+  } catch {
+    return { ...defaultSettings, networks: [...defaultSettings.networks] };
+  }
+}
+
 function loadStaleThreshold() {
   const storedValue = Number(localStorage.getItem(STALE_THRESHOLD_KEY));
 
@@ -370,7 +439,27 @@ function loadStaleThreshold() {
     return DEFAULT_STALE_THRESHOLD_DAYS;
   }
 
-  return Math.min(Math.max(Math.round(storedValue), 1), 30);
+  return normalizeStaleThreshold(storedValue);
+}
+
+function normalizeStaleThreshold(value) {
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return DEFAULT_STALE_THRESHOLD_DAYS;
+  }
+
+  return Math.min(Math.max(Math.round(numberValue), 1), 30);
+}
+
+function parseNetworks(value) {
+  const source = Array.isArray(value) ? value : String(value || "").split(",");
+  const networks = source
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .filter((item, index, items) => items.findIndex((network) => network.toLowerCase() === item.toLowerCase()) === index);
+
+  return networks.length ? networks : [...defaultSettings.networks];
 }
 
 function renderBoard() {
@@ -614,7 +703,7 @@ function renderSchedule(scheduleItems) {
 
 function renderFilters() {
   const currentValue = networkFilter.value;
-  const networks = [...new Set(posts.map((post) => post.network))].sort((a, b) =>
+  const networks = getAvailableNetworks().sort((a, b) =>
     a.localeCompare(b, "ru")
   );
 
@@ -627,6 +716,21 @@ function renderFilters() {
 
   networkFilter.value = networks.includes(currentValue) ? currentValue : "all";
   filters.network = networkFilter.value;
+}
+
+function renderNetworkOptions(select, selectedValue, includeEmpty = false) {
+  const networks = getAvailableNetworks();
+  select.innerHTML = `
+    ${includeEmpty ? '<option value="">Выбери канал</option>' : ""}
+    ${networks
+      .map((network) => `<option value="${escapeHtml(network)}">${escapeHtml(network)}</option>`)
+      .join("")}
+  `;
+  select.value = networks.includes(selectedValue) ? selectedValue : networks[0];
+}
+
+function getAvailableNetworks() {
+  return [...new Set([...settings.networks, ...posts.map((post) => post.network)])].filter(Boolean);
 }
 
 function getVisiblePosts() {
@@ -659,13 +763,50 @@ function hasActiveFilters() {
   );
 }
 
+function applySettings() {
+  projectTitle.textContent = settings.projectName;
+  projectSubtitle.textContent = settings.projectSubtitle;
+  document.title = `${settings.projectName} · Content Board MVP`;
+  renderNetworkOptions(networkInput, settings.defaultNetwork);
+}
+
+function openSettingsDialog() {
+  fillSettingsForm();
+  settingsDialog.showModal();
+  projectNameInput.focus();
+}
+
+function fillSettingsForm() {
+  projectNameInput.value = settings.projectName;
+  projectSubtitleInput.value = settings.projectSubtitle;
+  networksInput.value = settings.networks.join(", ");
+  settingsStaleThresholdInput.value = String(staleThresholdDays);
+  renderNetworkOptions(defaultNetworkInput, settings.defaultNetwork);
+}
+
+function closeSettingsDialog() {
+  settingsForm.reset();
+  settingsDialog.close();
+}
+
+function resetSettings() {
+  settings = { ...defaultSettings, networks: [...defaultSettings.networks] };
+  staleThresholdDays = DEFAULT_STALE_THRESHOLD_DAYS;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  localStorage.setItem(STALE_THRESHOLD_KEY, String(staleThresholdDays));
+  staleThresholdInput.value = String(staleThresholdDays);
+  applySettings();
+  renderBoard();
+  fillSettingsForm();
+}
+
 function openPostDialog(post = null) {
   editingPostId = post?.id || null;
   dialogTitle.textContent = post ? "Редактирование поста" : "Новая идея";
   titleInput.value = post?.title || "";
   textInput.value = post?.text || "";
   dateInput.value = post?.date || "";
-  networkInput.value = post?.network || "Instagram";
+  renderNetworkOptions(networkInput, post?.network || settings.defaultNetwork);
   writeChecklist(post?.checklist);
   deletePostButton.classList.toggle("is-hidden", !post);
   archivePostButton.classList.toggle("is-hidden", !post || (!post.archived && post.stage !== "published"));

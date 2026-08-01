@@ -20,6 +20,7 @@
           <span></span>
           Сохраняется в браузере
         </div>
+        <button class="secondary-action" id="settingsButton" type="button">Настройки</button>
         <button class="primary-action" id="addPostButton" type="button">
           <span aria-hidden="true">+</span>
           Идея
@@ -200,6 +201,47 @@
             <button class="danger-action" id="deletePostButton" type="button">Удалить</button>
             <button class="secondary-action is-hidden" id="archivePostButton" type="button">В архив</button>
           </div>
+          <button class="primary-action" type="submit">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="settings-dialog" id="settingsDialog">
+      <form class="settings-form" id="settingsForm" method="dialog">
+        <div class="dialog-header">
+          <h2>Настройки проекта</h2>
+          <button class="icon-button" id="closeSettingsButton" type="button" aria-label="Закрыть">×</button>
+        </div>
+
+        <label>
+          Название доски
+          <input id="projectNameInput" type="text" maxlength="60" />
+        </label>
+
+        <label>
+          Описание
+          <textarea id="projectSubtitleInput" rows="3" maxlength="180"></textarea>
+        </label>
+
+        <div class="form-grid">
+          <label>
+            Соцсеть по умолчанию
+            <select id="defaultNetworkInput"></select>
+          </label>
+
+          <label>
+            Порог зависания, дней
+            <input id="settingsStaleThresholdInput" type="number" min="1" max="30" step="1" />
+          </label>
+        </div>
+
+        <label>
+          Каналы через запятую
+          <input id="networksInput" type="text" placeholder="Instagram, Telegram, VK" />
+        </label>
+
+        <div class="form-actions">
+          <button class="ghost-action" id="resetSettingsButton" type="button">Сбросить</button>
           <button class="primary-action" type="submit">Сохранить</button>
         </div>
       </form>
