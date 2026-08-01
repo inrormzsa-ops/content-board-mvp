@@ -65,6 +65,10 @@ let filters = {
 
 const board = document.querySelector("#board");
 const summaryStrip = document.querySelector("#summaryStrip");
+const reminderList = document.querySelector("#reminderList");
+const copyRemindersButton = document.querySelector("#copyRemindersButton");
+const emailRemindersLink = document.querySelector("#emailRemindersLink");
+const telegramRemindersLink = document.querySelector("#telegramRemindersLink");
 const searchInput = document.querySelector("#searchInput");
 const networkFilter = document.querySelector("#networkFilter");
 const dateFilter = document.querySelector("#dateFilter");
@@ -99,6 +103,10 @@ staleThresholdInput.value = String(staleThresholdDays);
 
 addPostButton.addEventListener("click", () => openPostDialog());
 closeDialogButton.addEventListener("click", closePostDialog);
+
+copyRemindersButton.addEventListener("click", async () => {
+  await copyText(buildReminderDigest(getReminderItems()));
+});
 
 searchInput.addEventListener("input", () => {
   filters.search = searchInput.value.trim().toLowerCase();
@@ -281,10 +289,12 @@ function loadStaleThreshold() {
 
 function renderBoard() {
   const visiblePosts = getVisiblePosts();
+  const reminderItems = getReminderItems();
 
   board.innerHTML = "";
   renderFilters();
   renderSummary(visiblePosts);
+  renderReminders(reminderItems);
 
   stages.forEach((stage) => {
     const stagePosts = visiblePosts
@@ -461,6 +471,35 @@ function renderSummary(visiblePosts) {
       <span>требует внимания</span>
     </article>
   `;
+}
+
+function renderReminders(reminderItems) {
+  const digest = buildReminderDigest(reminderItems);
+
+  reminderList.innerHTML = reminderItems.length
+    ? reminderItems
+        .slice(0, 4)
+        .map(
+          (item) => `
+            <article class="reminder-item">
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(item.reason)}</span>
+            </article>
+          `
+        )
+        .join("")
+    : `
+      <article class="reminder-item is-clear">
+        <strong>Все спокойно</strong>
+        <span>Нет просроченных, зависших или недооформленных карточек.</span>
+      </article>
+    `;
+
+  const encodedSubject = encodeURIComponent("Напоминание по контент-доске");
+  const encodedDigest = encodeURIComponent(digest);
+  emailRemindersLink.href = `mailto:?subject=${encodedSubject}&body=${encodedDigest}`;
+  telegramRemindersLink.href = `https://t.me/share/url?text=${encodedDigest}`;
+  copyRemindersButton.disabled = reminderItems.length === 0;
 }
 
 function renderFilters() {
@@ -686,6 +725,58 @@ function getChecklistStatus(post) {
     total: values.length,
     percent: Math.round((done / values.length) * 100)
   };
+}
+
+function getReminderItems() {
+  return posts
+    .filter((post) => !post.archived && post.stage !== "published")
+    .map((post) => {
+      const dateStatus = getDateStatus(post);
+      const stageStatus = getStageStatus(post);
+      const stageTitle = stages.find((stage) => stage.id === post.stage)?.title || post.stage;
+      const reasons = [];
+
+      if (stageStatus.isStale) {
+        reasons.push(`зависла на стадии "${stageTitle}" ${formatDays(stageStatus.ageDays)}`);
+      }
+
+      if (dateStatus.isOverdue) {
+        reasons.push(`просрочена дата ${formatDate(post.date)}`);
+      }
+
+      if (post.stage === "scheduled" && !post.date) {
+        reasons.push("в планировании не выбрана дата");
+      }
+
+      return {
+        id: post.id,
+        title: post.title,
+        stage: stageTitle,
+        reason: reasons.join(", "),
+        priority: Number(stageStatus.isStale) + Number(dateStatus.isOverdue) + Number(post.stage === "scheduled" && !post.date),
+        ageDays: stageStatus.ageDays
+      };
+    })
+    .filter((item) => item.reason)
+    .sort((a, b) => b.priority - a.priority || b.ageDays - a.ageDays || a.title.localeCompare(b.title, "ru"));
+}
+
+function buildReminderDigest(reminderItems) {
+  if (reminderItems.length === 0) {
+    return "На контент-доске сейчас нет карточек, которые требуют напоминания.";
+  }
+
+  const lines = reminderItems.map(
+    (item, index) => `${index + 1}. ${item.title} — ${item.reason}.`
+  );
+
+  return [
+    "Нужно продвинуть контент по доске:",
+    "",
+    ...lines,
+    "",
+    `Порог зависания: ${formatDays(staleThresholdDays)}.`
+  ].join("\n");
 }
 
 function buildLocalDraft() {

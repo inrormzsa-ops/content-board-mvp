@@ -29,6 +29,23 @@
 
     <section class="summary-strip" id="summaryStrip" aria-label="Сводка по доске"></section>
 
+    <section class="reminder-panel" aria-label="Напоминания">
+      <div class="reminder-copy">
+        <p class="eyebrow">Напоминания</p>
+        <h2>Что требует движения</h2>
+      </div>
+      <div class="reminder-list" id="reminderList"></div>
+      <div class="reminder-actions">
+        <button class="secondary-action compact-action" id="copyRemindersButton" type="button">
+          Копировать
+        </button>
+        <a class="secondary-action compact-action" id="emailRemindersLink" href="#">Email</a>
+        <a class="secondary-action compact-action" id="telegramRemindersLink" href="#" target="_blank" rel="noreferrer">
+          Telegram
+        </a>
+      </div>
+    </section>
+
     <section class="toolbar" aria-label="Поиск, фильтры и перенос данных">
       <label class="search-field">
         <span>Поиск</span>
