@@ -145,7 +145,8 @@ let filters = {
   search: "",
   network: "all",
   date: "all",
-  archive: "active"
+  archive: "active",
+  tag: "all"
 };
 
 const board = document.querySelector("#board");
@@ -162,6 +163,7 @@ const searchInput = document.querySelector("#searchInput");
 const networkFilter = document.querySelector("#networkFilter");
 const dateFilter = document.querySelector("#dateFilter");
 const archiveFilter = document.querySelector("#archiveFilter");
+const tagFilter = document.querySelector("#tagFilter");
 const staleThresholdInput = document.querySelector("#staleThresholdInput");
 const resetFiltersButton = document.querySelector("#resetFiltersButton");
 const copyVisibleButton = document.querySelector("#copyVisibleButton");
@@ -192,6 +194,7 @@ const dateInput = document.querySelector("#postDate");
 const networkInput = document.querySelector("#postNetwork");
 const priorityInput = document.querySelector("#postPriority");
 const referenceInput = document.querySelector("#postReference");
+const tagsInput = document.querySelector("#postTags");
 const checkTextInput = document.querySelector("#checkText");
 const checkDateInput = document.querySelector("#checkDate");
 const checkReviewInput = document.querySelector("#checkReview");
@@ -252,6 +255,11 @@ archiveFilter.addEventListener("change", () => {
   renderBoard();
 });
 
+tagFilter.addEventListener("change", () => {
+  filters.tag = tagFilter.value;
+  renderBoard();
+});
+
 staleThresholdInput.addEventListener("change", () => {
   staleThresholdDays = normalizeStaleThreshold(staleThresholdInput.value);
   staleThresholdInput.value = String(staleThresholdDays);
@@ -264,12 +272,14 @@ resetFiltersButton.addEventListener("click", () => {
     search: "",
     network: "all",
     date: "all",
-    archive: "active"
+    archive: "active",
+    tag: "all"
   };
   searchInput.value = "";
   networkFilter.value = "all";
   dateFilter.value = "all";
   archiveFilter.value = "active";
+  tagFilter.value = "all";
   renderBoard();
 });
 
@@ -349,6 +359,7 @@ form.addEventListener("submit", (event) => {
     network: networkInput.value,
     priority: priorityInput.value,
     referenceUrl: normalizeUrl(referenceInput.value),
+    tags: parseTags(tagsInput.value),
     checklist: readChecklist()
   };
 
@@ -506,6 +517,16 @@ function normalizePriority(value) {
   return priorityConfig[value] ? value : "normal";
 }
 
+function parseTags(value) {
+  const source = Array.isArray(value) ? value : String(value || "").split(",");
+
+  return source
+    .map((tag) => String(tag).trim())
+    .filter(Boolean)
+    .filter((tag, index, tags) => tags.findIndex((item) => item.toLowerCase() === tag.toLowerCase()) === index)
+    .slice(0, 8);
+}
+
 function getPriority(value) {
   return priorityConfig[normalizePriority(value)];
 }
@@ -596,6 +617,7 @@ function createPostCard(post) {
   const stageStatus = getStageStatus(post);
   const checklistStatus = getChecklistStatus(post);
   const priority = getPriority(post.priority);
+  const postTags = post.tags || [];
   const archiveActionLabel = post.archived ? "Вернуть" : "В архив";
   const canToggleArchive = post.archived || post.stage === "published";
   const card = document.createElement("article");
@@ -624,6 +646,13 @@ function createPostCard(post) {
     <div class="card-badges">
       <span class="priority-badge priority-${escapeAttribute(post.priority)}">${escapeHtml(priority.label)}</span>
     </div>
+    ${
+      postTags.length
+        ? `<div class="tag-list">${postTags
+            .map((tag) => `<span>${escapeHtml(tag)}</span>`)
+            .join("")}</div>`
+        : ""
+    }
     ${
       post.referenceUrl
         ? `<a class="reference-link" href="${escapeAttribute(post.referenceUrl)}" target="_blank" rel="noreferrer">Материал</a>`
@@ -788,9 +817,11 @@ function renderSchedule(scheduleItems) {
 
 function renderFilters() {
   const currentValue = networkFilter.value;
+  const currentTag = tagFilter.value;
   const networks = getAvailableNetworks().sort((a, b) =>
     a.localeCompare(b, "ru")
   );
+  const tags = getAvailableTags();
 
   networkFilter.innerHTML = `
     <option value="all">Все соцсети</option>
@@ -801,6 +832,15 @@ function renderFilters() {
 
   networkFilter.value = networks.includes(currentValue) ? currentValue : "all";
   filters.network = networkFilter.value;
+
+  tagFilter.innerHTML = `
+    <option value="all">Все теги</option>
+    ${tags
+      .map((tag) => `<option value="${escapeHtml(tag)}">${escapeHtml(tag)}</option>`)
+      .join("")}
+  `;
+  tagFilter.value = tags.includes(currentTag) ? currentTag : "all";
+  filters.tag = tagFilter.value;
 }
 
 function renderNetworkOptions(select, selectedValue, includeEmpty = false) {
@@ -818,11 +858,20 @@ function getAvailableNetworks() {
   return [...new Set([...settings.networks, ...posts.map((post) => post.network)])].filter(Boolean);
 }
 
+function getAvailableTags() {
+  return [...new Set(posts.flatMap((post) => post.tags || []))].sort((a, b) =>
+    a.localeCompare(b, "ru")
+  );
+}
+
 function getVisiblePosts() {
   return posts.filter((post) => {
     const query = `${post.title} ${post.text}`.toLowerCase();
+    const tagQuery = (post.tags || []).join(" ").toLowerCase();
     const matchesSearch = !filters.search || query.includes(filters.search);
+    const matchesSearchWithTags = matchesSearch || Boolean(filters.search && tagQuery.includes(filters.search));
     const matchesNetwork = filters.network === "all" || post.network === filters.network;
+    const matchesTag = filters.tag === "all" || (post.tags || []).includes(filters.tag);
     const dateStatus = getDateStatus(post);
     const stageStatus = getStageStatus(post);
     const matchesArchive =
@@ -835,7 +884,7 @@ function getVisiblePosts() {
       (filters.date === "overdue" && dateStatus.isOverdue) ||
       (filters.date === "stale" && stageStatus.isStale);
 
-    return matchesSearch && matchesNetwork && matchesArchive && matchesDate;
+    return matchesSearchWithTags && matchesNetwork && matchesTag && matchesArchive && matchesDate;
   });
 }
 
@@ -893,6 +942,7 @@ function openPostDialog(post = null) {
   dateInput.value = post?.date || "";
   priorityInput.value = normalizePriority(post?.priority);
   referenceInput.value = post?.referenceUrl || "";
+  tagsInput.value = post?.tags?.join(", ") || "";
   renderNetworkOptions(networkInput, post?.network || settings.defaultNetwork);
   writeChecklist(post?.checklist);
   renderHistory(post);
@@ -1483,6 +1533,7 @@ function normalizePosts(items) {
       network: post.network || "Другое",
       priority: normalizePriority(post.priority),
       referenceUrl: normalizeUrl(post.referenceUrl || post.reference || ""),
+      tags: parseTags(post.tags || post.tag || ""),
       stage: stages.some((stage) => stage.id === post.stage) ? post.stage : "idea",
       createdAt: Number(post.createdAt) || Date.now(),
       stageChangedAt: Number(post.stageChangedAt) || Number(post.createdAt) || Date.now(),

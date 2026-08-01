@@ -101,6 +101,13 @@
       </label>
 
       <label>
+        Тег
+        <select id="tagFilter">
+          <option value="all">Все теги</option>
+        </select>
+      </label>
+
+      <label>
         Зависла после
         <input id="staleThresholdInput" type="number" min="1" max="30" step="1" />
       </label>
@@ -181,6 +188,11 @@
         <label>
           Ссылка на материал
           <input id="postReference" name="reference" type="text" inputmode="url" placeholder="https://..." />
+        </label>
+
+        <label>
+          Теги через запятую
+          <input id="postTags" name="tags" type="text" placeholder="рубрика, запуск, идея" />
         </label>
 
         <fieldset class="checklist-fieldset">

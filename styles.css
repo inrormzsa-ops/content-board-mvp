@@ -402,6 +402,7 @@ h1 {
     minmax(150px, 200px)
     minmax(150px, 200px)
     minmax(120px, 170px)
+    minmax(120px, 170px)
     minmax(120px, 150px)
     auto;
   gap: 12px;
@@ -712,6 +713,21 @@ h1 {
 .priority-low {
   background: #f0fdf4;
   color: #067647;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-list span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f5f3ff;
+  color: #5b21b6;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .tag {
