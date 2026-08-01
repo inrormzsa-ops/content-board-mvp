@@ -81,6 +81,10 @@ const titleInput = document.querySelector("#postTitle");
 const textInput = document.querySelector("#postText");
 const dateInput = document.querySelector("#postDate");
 const networkInput = document.querySelector("#postNetwork");
+const checkTextInput = document.querySelector("#checkText");
+const checkDateInput = document.querySelector("#checkDate");
+const checkReviewInput = document.querySelector("#checkReview");
+const checkPublishedInput = document.querySelector("#checkPublished");
 
 renderBoard();
 staleThresholdInput.value = String(staleThresholdDays);
@@ -141,7 +145,8 @@ form.addEventListener("submit", (event) => {
     title: titleInput.value.trim(),
     text: textInput.value.trim(),
     date: dateInput.value,
-    network: networkInput.value
+    network: networkInput.value,
+    checklist: readChecklist()
   };
 
   if (!values.title || !values.text) {
@@ -288,6 +293,7 @@ function createPostCard(post) {
   const stage = stages[currentStageIndex];
   const dateStatus = getDateStatus(post);
   const stageStatus = getStageStatus(post);
+  const checklistStatus = getChecklistStatus(post);
   const card = document.createElement("article");
   card.className = `post-card ${dateStatus.className} ${stageStatus.isStale ? "is-stale" : ""}`;
   card.style.setProperty("--stage-accent", stage.accent);
@@ -300,6 +306,10 @@ function createPostCard(post) {
     </div>
     <div class="stage-age ${stageStatus.isStale ? "is-stale" : ""}">
       ${stageStatus.label}
+    </div>
+    <div class="checklist-progress" aria-label="Готовность поста">
+      <span style="width: ${checklistStatus.percent}%"></span>
+      <strong>${checklistStatus.done}/${checklistStatus.total}</strong>
     </div>
     <div class="meta-row">
       <span class="tag tag-${post.network.toLowerCase()}">${escapeHtml(post.network)}</span>
@@ -419,6 +429,7 @@ function openPostDialog(post = null) {
   textInput.value = post?.text || "";
   dateInput.value = post?.date || "";
   networkInput.value = post?.network || "Instagram";
+  writeChecklist(post?.checklist);
   deletePostButton.classList.toggle("is-hidden", !post);
   dialog.showModal();
   titleInput.focus();
@@ -426,8 +437,25 @@ function openPostDialog(post = null) {
 
 function closePostDialog() {
   form.reset();
+  writeChecklist();
   editingPostId = null;
   dialog.close();
+}
+
+function readChecklist() {
+  return {
+    text: checkTextInput.checked,
+    date: checkDateInput.checked,
+    review: checkReviewInput.checked,
+    published: checkPublishedInput.checked
+  };
+}
+
+function writeChecklist(checklist = {}) {
+  checkTextInput.checked = Boolean(checklist.text);
+  checkDateInput.checked = Boolean(checklist.date);
+  checkReviewInput.checked = Boolean(checklist.review);
+  checkPublishedInput.checked = Boolean(checklist.published);
 }
 
 function movePostByOneStage(postId, direction) {
@@ -523,6 +551,23 @@ function getStageStatus(post) {
   };
 }
 
+function getChecklistStatus(post) {
+  const checklist = post.checklist || {};
+  const values = [
+    Boolean(checklist.text),
+    Boolean(checklist.date),
+    Boolean(checklist.review),
+    Boolean(checklist.published)
+  ];
+  const done = values.filter(Boolean).length;
+
+  return {
+    done,
+    total: values.length,
+    percent: Math.round((done / values.length) * 100)
+  };
+}
+
 function exportPosts() {
   const payload = {
     exportedAt: new Date().toISOString(),
@@ -583,7 +628,13 @@ function normalizePosts(items) {
       network: post.network || "Другое",
       stage: stages.some((stage) => stage.id === post.stage) ? post.stage : "idea",
       createdAt: Number(post.createdAt) || Date.now(),
-      stageChangedAt: Number(post.stageChangedAt) || Number(post.createdAt) || Date.now()
+      stageChangedAt: Number(post.stageChangedAt) || Number(post.createdAt) || Date.now(),
+      checklist: {
+        text: Boolean(post.checklist?.text),
+        date: Boolean(post.checklist?.date),
+        review: Boolean(post.checklist?.review),
+        published: Boolean(post.checklist?.published)
+      }
     }));
 }
 
