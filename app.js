@@ -88,6 +88,11 @@ const checkTextInput = document.querySelector("#checkText");
 const checkDateInput = document.querySelector("#checkDate");
 const checkReviewInput = document.querySelector("#checkReview");
 const checkPublishedInput = document.querySelector("#checkPublished");
+const aiDraftButton = document.querySelector("#aiDraftButton");
+const aiPromptButton = document.querySelector("#aiPromptButton");
+const aiOutput = document.querySelector("#aiOutput");
+const copyAiOutputButton = document.querySelector("#copyAiOutputButton");
+const insertAiOutputButton = document.querySelector("#insertAiOutputButton");
 
 renderBoard();
 staleThresholdInput.value = String(staleThresholdDays);
@@ -141,6 +146,31 @@ resetFiltersButton.addEventListener("click", () => {
 
 exportButton.addEventListener("click", exportPosts);
 importInput.addEventListener("change", importPosts);
+
+aiDraftButton.addEventListener("click", () => {
+  aiOutput.value = buildLocalDraft();
+});
+
+aiPromptButton.addEventListener("click", () => {
+  aiOutput.value = buildAiPrompt();
+});
+
+copyAiOutputButton.addEventListener("click", async () => {
+  if (!aiOutput.value) {
+    return;
+  }
+
+  await copyText(aiOutput.value);
+});
+
+insertAiOutputButton.addEventListener("click", () => {
+  if (!aiOutput.value) {
+    return;
+  }
+
+  textInput.value = aiOutput.value;
+  checkTextInput.checked = true;
+});
 
 dialog.addEventListener("click", (event) => {
   if (event.target === dialog) {
@@ -498,6 +528,7 @@ function openPostDialog(post = null) {
 function closePostDialog() {
   form.reset();
   writeChecklist();
+  aiOutput.value = "";
   editingPostId = null;
   dialog.close();
 }
@@ -655,6 +686,93 @@ function getChecklistStatus(post) {
     total: values.length,
     percent: Math.round((done / values.length) * 100)
   };
+}
+
+function buildLocalDraft() {
+  const title = titleInput.value.trim() || "Тема поста";
+  const network = networkInput.value;
+  const dateLine = dateInput.value ? `Дата выхода: ${formatDate(dateInput.value)}` : "Дата выхода: не выбрана";
+  const style = getNetworkStyle(network);
+
+  return [
+    `Хук: ${title}`,
+    "",
+    `Главная мысль: ${style.mainIdea}`,
+    "",
+    "Текст:",
+    `1. Назови проблему, которую человек узнает сразу.`,
+    `2. Покажи один конкретный пример или мини-историю.`,
+    `3. Дай практичный вывод: что сделать сегодня.`,
+    "",
+    `Формат: ${style.format}`,
+    dateLine,
+    "",
+    "CTA: Напиши в комментариях, на какой стадии сейчас твой контент."
+  ].join("\n");
+}
+
+function buildAiPrompt() {
+  const title = titleInput.value.trim() || "Тема поста";
+  const currentText = textInput.value.trim() || "Текста пока нет.";
+  const network = networkInput.value;
+  const dateLine = dateInput.value ? formatDate(dateInput.value) : "дата еще не выбрана";
+  const checklist = readChecklist();
+
+  return [
+    "Ты опытный редактор контента.",
+    `Подготовь пост для ${network}.`,
+    `Тема: ${title}.`,
+    `Дата публикации: ${dateLine}.`,
+    "",
+    "Исходник:",
+    currentText,
+    "",
+    "Сделай:",
+    "- сильный хук в первой строке;",
+    "- короткий, живой текст без канцелярита;",
+    "- структуру, которую легко читать с телефона;",
+    "- один понятный CTA в конце;",
+    "- 3 варианта заголовка.",
+    "",
+    `Статус готовности: текст ${checklist.text ? "готов" : "не готов"}, дата ${
+      checklist.date ? "выбрана" : "не выбрана"
+    }, проверка ${checklist.review ? "пройдена" : "не пройдена"}.`
+  ].join("\n");
+}
+
+function getNetworkStyle(network) {
+  const styles = {
+    Instagram: {
+      mainIdea: "зацепить эмоцией и быстро перейти к полезному выводу",
+      format: "короткие абзацы, 1-2 эмодзи можно добавить уже вручную"
+    },
+    Telegram: {
+      mainIdea: "дать мысль глубже и оставить ощущение разговора один на один",
+      format: "абзацы по 1-3 строки, без перегруза хэштегами"
+    },
+    VK: {
+      mainIdea: "объяснить пользу простым языком и пригласить к обсуждению",
+      format: "средняя длина, дружелюбный тон, конкретный пример"
+    },
+    YouTube: {
+      mainIdea: "собрать сценарный каркас для описания или Shorts",
+      format: "хук, тезисы, финальный призыв"
+    }
+  };
+
+  return styles[network] || {
+    mainIdea: "понятно объяснить ценность идеи для аудитории",
+    format: "короткая структура: хук, пример, вывод, CTA"
+  };
+}
+
+async function copyText(value) {
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    aiOutput.select();
+    document.execCommand("copy");
+  }
 }
 
 function exportPosts() {

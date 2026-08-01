@@ -138,6 +138,21 @@
           </label>
         </fieldset>
 
+        <section class="ai-panel" aria-label="AI-помощник">
+          <div class="ai-panel-header">
+            <h3>AI-помощник</h3>
+            <div>
+              <button class="secondary-action compact-action" id="aiDraftButton" type="button">Черновик</button>
+              <button class="secondary-action compact-action" id="aiPromptButton" type="button">Промпт</button>
+            </div>
+          </div>
+          <textarea id="aiOutput" rows="6" readonly placeholder="Здесь появится черновик или промпт"></textarea>
+          <div class="ai-actions">
+            <button class="ghost-action compact-action" id="copyAiOutputButton" type="button">Копировать</button>
+            <button class="secondary-action compact-action" id="insertAiOutputButton" type="button">Вставить в текст</button>
+          </div>
+        </section>
+
         <div class="form-actions">
           <div class="form-secondary-actions">
             <button class="danger-action" id="deletePostButton" type="button">Удалить</button>

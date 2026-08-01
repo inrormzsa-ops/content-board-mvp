@@ -213,6 +213,12 @@ h1 {
   white-space: nowrap;
 }
 
+.compact-action {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
 .secondary-action {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -727,6 +733,42 @@ textarea {
   accent-color: var(--accent);
 }
 
+.ai-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfe;
+}
+
+.ai-panel-header,
+.ai-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-panel-header h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.ai-panel-header div,
+.ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ai-panel textarea {
+  min-height: 132px;
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .form-actions {
   padding-top: 4px;
 }
@@ -807,6 +849,17 @@ textarea {
 
   .secondary-action,
   .ghost-action {
+    width: 100%;
+  }
+
+  .ai-panel-header,
+  .ai-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ai-panel-header div,
+  .ai-actions {
     width: 100%;
   }
 
