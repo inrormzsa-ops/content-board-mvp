@@ -131,6 +131,7 @@ const reminderList = document.querySelector("#reminderList");
 const copyRemindersButton = document.querySelector("#copyRemindersButton");
 const emailRemindersLink = document.querySelector("#emailRemindersLink");
 const telegramRemindersLink = document.querySelector("#telegramRemindersLink");
+const scheduleList = document.querySelector("#scheduleList");
 const searchInput = document.querySelector("#searchInput");
 const networkFilter = document.querySelector("#networkFilter");
 const dateFilter = document.querySelector("#dateFilter");
@@ -170,6 +171,20 @@ closeDialogButton.addEventListener("click", closePostDialog);
 
 copyRemindersButton.addEventListener("click", async () => {
   await copyText(buildReminderDigest(getReminderItems()));
+});
+
+scheduleList.addEventListener("click", (event) => {
+  const scheduleButton = event.target.closest("[data-schedule-post]");
+
+  if (!scheduleButton) {
+    return;
+  }
+
+  const post = posts.find((item) => item.id === scheduleButton.dataset.schedulePost);
+
+  if (post) {
+    openPostDialog(post);
+  }
 });
 
 searchInput.addEventListener("input", () => {
@@ -356,11 +371,13 @@ function loadStaleThreshold() {
 function renderBoard() {
   const visiblePosts = getVisiblePosts();
   const reminderItems = getReminderItems();
+  const scheduleItems = getScheduleItems();
 
   board.innerHTML = "";
   renderFilters();
   renderSummary(visiblePosts);
   renderReminders(reminderItems);
+  renderSchedule(scheduleItems);
 
   stages.forEach((stage) => {
     const stagePosts = visiblePosts
@@ -566,6 +583,27 @@ function renderReminders(reminderItems) {
   emailRemindersLink.href = `mailto:?subject=${encodedSubject}&body=${encodedDigest}`;
   telegramRemindersLink.href = `https://t.me/share/url?text=${encodedDigest}`;
   copyRemindersButton.disabled = reminderItems.length === 0;
+}
+
+function renderSchedule(scheduleItems) {
+  scheduleList.innerHTML = scheduleItems.length
+    ? scheduleItems
+        .map(
+          (item) => `
+            <button class="schedule-item ${item.statusClass}" type="button" data-schedule-post="${item.id}">
+              <span class="schedule-date">${escapeHtml(item.dateLabel)}</span>
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(item.meta)}</span>
+            </button>
+          `
+        )
+        .join("")
+    : `
+      <div class="schedule-empty">
+        <strong>Дат пока нет</strong>
+        <span>Назначь дату карточке, и она появится в календаре.</span>
+      </div>
+    `;
 }
 
 function renderFilters() {
@@ -845,6 +883,59 @@ function getReminderItems() {
     })
     .filter((item) => item.reason)
     .sort((a, b) => b.priority - a.priority || b.ageDays - a.ageDays || a.title.localeCompare(b.title, "ru"));
+}
+
+function getScheduleItems() {
+  return posts
+    .filter((post) => post.date && !post.archived)
+    .map((post) => {
+      const date = new Date(`${post.date}T00:00:00`);
+      const stageTitle = stages.find((stage) => stage.id === post.stage)?.title || post.stage;
+      const relative = getScheduleRelativeLabel(date, post.stage);
+
+      return {
+        id: post.id,
+        title: post.title,
+        dateValue: date.getTime(),
+        dateLabel: formatDate(post.date),
+        statusClass: relative.statusClass,
+        meta: `${relative.label} · ${stageTitle} · ${post.network}`
+      };
+    })
+    .sort((a, b) => a.dateValue - b.dateValue || a.title.localeCompare(b.title, "ru"))
+    .slice(0, 8);
+}
+
+function getScheduleRelativeLabel(date, stage) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((date.getTime() - today.getTime()) / DAY_IN_MS);
+
+  if (diffDays < 0 && stage !== "published") {
+    return {
+      label: `просрочено на ${formatDays(Math.abs(diffDays))}`,
+      statusClass: "is-overdue"
+    };
+  }
+
+  if (diffDays === 0) {
+    return {
+      label: "сегодня",
+      statusClass: "is-today"
+    };
+  }
+
+  if (diffDays > 0) {
+    return {
+      label: `через ${formatDays(diffDays)}`,
+      statusClass: ""
+    };
+  }
+
+  return {
+    label: "опубликовано",
+    statusClass: "is-done"
+  };
 }
 
 function buildReminderDigest(reminderItems) {
