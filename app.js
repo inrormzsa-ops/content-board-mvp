@@ -137,6 +137,7 @@ const board = document.querySelector("#board");
 const projectTitle = document.querySelector(".header-copy h1");
 const projectSubtitle = document.querySelector(".subtitle");
 const summaryStrip = document.querySelector("#summaryStrip");
+const insightsGrid = document.querySelector("#insightsGrid");
 const reminderList = document.querySelector("#reminderList");
 const copyRemindersButton = document.querySelector("#copyRemindersButton");
 const emailRemindersLink = document.querySelector("#emailRemindersLink");
@@ -470,6 +471,7 @@ function renderBoard() {
   board.innerHTML = "";
   renderFilters();
   renderSummary(visiblePosts);
+  renderInsights();
   renderReminders(reminderItems);
   renderSchedule(scheduleItems);
   copyVisibleButton.disabled = visiblePosts.length === 0;
@@ -649,6 +651,22 @@ function renderSummary(visiblePosts) {
       <span>требует внимания</span>
     </article>
   `;
+}
+
+function renderInsights() {
+  const insights = getProcessInsights();
+
+  insightsGrid.innerHTML = insights
+    .map(
+      (item) => `
+        <article class="insight-card">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+          <small>${escapeHtml(item.hint)}</small>
+        </article>
+      `
+    )
+    .join("");
 }
 
 function renderReminders(reminderItems) {
@@ -996,6 +1014,49 @@ function getChecklistStatus(post) {
     total: values.length,
     percent: Math.round((done / values.length) * 100)
   };
+}
+
+function getProcessInsights() {
+  const activePosts = posts.filter((post) => !post.archived);
+  const activeTotal = activePosts.length;
+  const publishedCount = activePosts.filter((post) => post.stage === "published").length;
+  const staleCount = activePosts.filter((post) => getStageStatus(post).isStale).length;
+  const checklistTotal = activePosts.reduce((sum, post) => sum + getChecklistStatus(post).percent, 0);
+  const readiness = activeTotal ? Math.round(checklistTotal / activeTotal) : 0;
+  const publishedShare = activeTotal ? Math.round((publishedCount / activeTotal) * 100) : 0;
+  const busiestStage = getBusiestStage(activePosts);
+
+  return [
+    {
+      label: "До публикации",
+      value: `${publishedShare}%`,
+      hint: `${publishedCount} из ${activeTotal || 0} активных`
+    },
+    {
+      label: "Готовность",
+      value: `${readiness}%`,
+      hint: "средний чеклист"
+    },
+    {
+      label: "Зависли",
+      value: String(staleCount),
+      hint: `порог ${formatDays(staleThresholdDays)}`
+    },
+    {
+      label: "Узкое место",
+      value: busiestStage.title,
+      hint: busiestStage.count ? `${busiestStage.count} карточек` : "нет активных карточек"
+    }
+  ];
+}
+
+function getBusiestStage(activePosts) {
+  const counts = stages.map((stage) => ({
+    title: stage.title,
+    count: activePosts.filter((post) => post.stage === stage.id).length
+  }));
+
+  return counts.sort((a, b) => b.count - a.count || a.title.localeCompare(b.title, "ru"))[0];
 }
 
 function getReminderItems() {
